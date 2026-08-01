@@ -1,0 +1,542 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Futuristic Financial App Design System */
+
+@layer base {
+  :root {
+    /* Light Futuristic Background */
+    --background: 0 0% 98%;
+    --foreground: 220 15% 15%;
+
+    /* Glass Cards - Light with subtle tint */
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+
+    /* Primary - Vibrant Blue */
+    --primary: 217 91% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 217 91% 65%;
+
+    /* Secondary - Purple Accent */
+    --secondary: 270 80% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted Glass - Light gray */
+    --muted: 220 15% 96%;
+    --muted-foreground: 220 15% 40%;
+
+    /* Accent - Softer Turquoise */
+    --accent: 195 70% 65%; /* Changed from 180 100% 50% */
+    --accent-foreground: 0 0% 100%;
+
+    /* Success - Green */
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning - Orange */
+    --warning: 25 95% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Glass Borders - Darker for light theme */
+    --border: 220 15% 90%;
+    --input: 220 15% 95%;
+    --ring: 217 91% 55%;
+
+    /* Glass Effects - Updated for light theme */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.8);
+    --glass-blur: blur(20px);
+    --glass-shadow: rgba(0, 0, 0, 0.1);
+
+    /* Gradients - High contrast colors */
+    --gradient-primary: linear-gradient(135deg, hsl(220 100% 20%), hsl(217 91% 75%));
+    --gradient-secondary: linear-gradient(135deg, hsl(260 100% 25%), hsl(180 100% 70%));
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6));
+    --gradient-bg: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 25% 98%), hsl(217 91% 98%));
+
+    /* Shadows */
+    --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.2);
+    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Custom Toast Background for Light Mode (light yellow) */
+    --toast-bg: 48 96% 90%; /* HSL for a light yellow */
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Custom Toast Background for Dark Mode (darker yellow) */
+    --toast-bg: 48 96% 20%; /* HSL for a darker yellow */
+  }
+}
+
+@layer components {
+  /* Glass morphism utilities */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-card);
+  }
+
+  .glass-card {
+    @apply glass rounded-2xl p-6 transition-all duration-300;
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .glass-nav {
+    @apply glass rounded-xl p-4 transition-all duration-300;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+
+  .glass-nav:hover {
+    background: rgba(255, 255, 255, 0.8);
+    transform: translateY(-1px); /* Restored */
+    box-shadow: var(--shadow-glow); /* Restored */
+  }
+
+  /* 3D Transform utilities */
+  .transform-3d {
+    transform-style: preserve-3d;
+    perspective: 1000px;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Animated background */
+  /* Removed animated-bg class definition */
+
+  /* ── Edge-to-edge / safe areas ──────────────────────────────────────────────
+     Android 15 (targetSdk 35) draws every app edge-to-edge and gives apps no
+     opt-out. Combined with viewport-fit=cover in index.html, that means the
+     WebView viewport extends *underneath* the status bar and the gesture bar,
+     so every fixed-position chrome element has to pad itself out of the way
+     using env(safe-area-inset-*). Insets resolve to 0px in desktop browsers and
+     on devices without cutouts, so these rules are no-ops on the web build. */
+
+  /* Cold-start preloader — see components/loader/AppPreloader.tsx.
+
+     THE BASE GROUND IS FLAT WHITE AND MUST STAY THAT WAY. The native splash
+     drawable is white with the navy wordmark, so the handoff from Android's
+     splash to the WebView has to change the content and nothing else. Every
+     bit of colour in here — the ambient navy field, the vignette — is a
+     separate layer that starts at opacity 0 and blooms in over the first
+     ~900 ms. The first painted frame is therefore #FFFFFF, identical to the
+     splash, and no splash asset needs regenerating to match. If you ever move
+     the tint into `background` on .app-preloader itself, you reintroduce a
+     colour flash at launch and assets/splash.png has to be redrawn.
+
+     z-index sits above the status-bar band (60) because the loader covers the
+     entire viewport including the inset. */
+  .app-preloader {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    overflow: hidden;
+    background: #FFFFFF;
+    display: grid;
+    place-items: center;
+    padding: 0 1.5rem;
+    padding-top: env(safe-area-inset-top, 0px);
+    opacity: 1;
+    transition: opacity 300ms cubic-bezier(0.4, 0, 0.6, 1);
+  }
+  .app-preloader.is-leaving {
+    opacity: 0;
+    /* Stops a half-faded overlay from eating the first tap on the dashboard. */
+    pointer-events: none;
+  }
+
+  /* Ambient field. Three very wide, very low-alpha radials in the brand navy
+     and its lighter partner, oversized past the viewport so the slow drift
+     never exposes an edge. Alphas are in the 6–10% range on purpose: it should
+     read as depth on the tenth launch, not as decoration on the first. */
+  .app-preloader::before {
+    content: '';
+    position: absolute;
+    inset: -22%;
+    pointer-events: none;
+    background:
+      radial-gradient(46% 36% at 50% 33%, rgba(30, 58, 138, 0.10), rgba(30, 58, 138, 0) 70%),
+      radial-gradient(44% 34% at 16% 78%, rgba(56, 132, 232, 0.075), rgba(56, 132, 232, 0) 72%),
+      radial-gradient(48% 38% at 86% 18%, rgba(27, 46, 79, 0.06), rgba(27, 46, 79, 0) 70%);
+    opacity: 0;
+    animation:
+      preloaderBloom 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 40ms forwards,
+      preloaderDrift 24s cubic-bezier(0.45, 0, 0.55, 1) 900ms infinite alternate;
+    will-change: opacity, transform;
+  }
+
+  /* Vignette — the centre has to be the first thing the eye lands on. Sits
+     above the ambient field so the corners settle whatever is behind them. */
+  .app-preloader::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      74% 58% at 50% 45%,
+      rgba(23, 37, 66, 0) 40%,
+      rgba(23, 37, 66, 0.04) 76%,
+      rgba(23, 37, 66, 0.085) 100%
+    );
+    opacity: 0;
+    animation: preloaderBloom 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) 120ms forwards;
+  }
+
+  .app-preloader__inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    /* Optical centre, not geometric — a block of text pinned dead centre reads
+       as slightly low. */
+    transform: translateY(-3vh);
+  }
+
+  /* Type. Generous but not shouty: ~22px on a 375px screen, capped at 25.6px so
+     it never turns into a headline on a tablet. The measure is deliberately
+     narrow (max ~28ch) and `text-wrap: balance` evens the rag, which together
+     stop the ten-word lines from ending in an orphaned two-word row. */
+  .app-preloader__line {
+    margin: 0;
+    max-width: min(20rem, 84vw);
+    color: #16233C;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-size: clamp(1.3rem, 5.9vw, 1.6rem);
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: -0.016em;
+    text-wrap: balance;
+    text-rendering: optimizeLegibility;
+    font-optical-sizing: auto;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Each word arrives on its own delay (set inline from the component, 42 ms
+     apart). The per-word animation is SHORT and mostly opacity-complete early —
+     a slow fade-in would spend the reading budget on the fade rather than on
+     reading. Travel is 5px and a hair of blur, which reads as the word settling
+     rather than sliding. */
+  .app-preloader__word {
+    display: inline-block;
+    opacity: 0;
+    animation: preloaderWord 260ms cubic-bezier(0.16, 0.85, 0.24, 1) both;
+    will-change: opacity, transform;
+  }
+
+  /* Hairline meter. Not a percentage of anything — we cannot measure the load,
+     so the fill eases hard out of the gate and decelerates to a hold at 88%,
+     which is honest about not knowing. It only completes on `.is-leaving`,
+     i.e. when the app really is ready. */
+  .app-preloader__meter {
+    position: relative;
+    display: block;
+    width: 104px;
+    height: 2px;
+    margin-top: 1.75rem;
+    border-radius: 999px;
+    background: rgba(27, 46, 79, 0.11);
+    overflow: hidden;
+    opacity: 0;
+    animation: preloaderBloom 500ms ease-out 200ms forwards;
+  }
+
+  .app-preloader__meter-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(30, 58, 138, 0.45), #1E3A8A);
+    /* 160 ms delay + 1340 ms run lands exactly on MIN_VISIBLE_MS (1500 ms), so
+       the fill is at a known 88% at the instant `.is-leaving` can first be set
+       and the completion below starts from the same number it left off at.
+       Keep the three constants in step if you retime the loader. */
+    animation:
+      preloaderMeter 1340ms cubic-bezier(0.12, 0.72, 0.16, 1) 160ms both,
+      preloaderMeterHold 2600ms ease-in-out 1500ms infinite;
+  }
+  /* Slow loads sit at 88% until auth resolves; this is the only thing that
+     takes it to the end, and it runs inside the 300 ms exit fade. */
+  .app-preloader.is-leaving .app-preloader__meter-fill {
+    animation: preloaderMeterFinish 300ms cubic-bezier(0.3, 0.9, 0.3, 1) both;
+  }
+
+  .app-preloader__slow {
+    margin: 1.15rem 0 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    color: #55607A;
+    animation: preloaderBloom 420ms ease both;
+  }
+
+  @keyframes preloaderBloom {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes preloaderWord {
+    from { opacity: 0; transform: translateY(5px); filter: blur(3px); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+  }
+  @keyframes preloaderMeter {
+    from { width: 0; }
+    to   { width: 88%; }
+  }
+  @keyframes preloaderMeterHold {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+  @keyframes preloaderMeterFinish {
+    from { width: 88%; }
+    to   { width: 100%; }
+  }
+  @keyframes preloaderDrift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to   { transform: translate3d(-2.5%, 2%, 0) scale(1.08); }
+  }
+
+  /* Motion-sensitive users still get the copy, the field and the dismissal —
+     just no travel, no blur and no drift. The words land together at once
+     rather than in sequence, which is if anything easier to read. */
+  @media (prefers-reduced-motion: reduce) {
+    .app-preloader::before,
+    .app-preloader::after,
+    .app-preloader__meter,
+    .app-preloader__slow {
+      animation: preloaderBloom 200ms ease both;
+    }
+    .app-preloader__word {
+      animation: preloaderBloom 160ms ease both;
+      animation-delay: 0ms !important;
+    }
+    .app-preloader__meter-fill {
+      animation: none;
+      width: 88%;
+    }
+    .app-preloader.is-leaving .app-preloader__meter-fill {
+      animation: none;
+      width: 100%;
+      transition: width 260ms ease-out;
+    }
+  }
+
+  /* Blue band behind the status bar (clock, battery, signal).
+
+     This is drawn by the app, not by Android. Under targetSdk 35 the platform
+     forces edge-to-edge and Window.setStatusBarColor is deprecated to a no-op,
+     so StatusBar.setBackgroundColor() cannot colour this region any more — the
+     only reliable way to tint it is to paint over it ourselves.
+
+     Height is exactly the top inset, so it collapses to nothing on the web and
+     on devices that report no inset. z-index sits above .mobile-header (z-50)
+     so the header's frosted white doesn't bleed through, and pointer-events are
+     off so it can never swallow a tap meant for the UI beneath. */
+  .status-bar-band {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: #1E3A8A;
+    z-index: 60;
+    pointer-events: none;
+  }
+
+  /* Page roots that do NOT go through AppLayout.
+     AppLayout pads its own chrome (.mobile-header / .mobile-nav / .app-main-safe),
+     but Landing, Auth, Onboarding, IncomeGathering and NotFound render their own
+     top-level wrapper — so without this their content sits underneath the status
+     bar and the gesture/navigation bar. Landing and Auth are the cold-start
+     screens, which makes this the first thing a new user sees. */
+  .page-safe {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* A page's own fixed/sticky top bar. position:fixed ignores the padding on the
+     page root, so a bar like Landing's nav has to pad itself the same way
+     .mobile-header does — the frosted background still bleeds up behind it. */
+  .fixed-top-safe {
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Mobile header */
+  .mobile-header {
+    @apply fixed top-0 left-0 right-0 z-50 md:hidden;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    -webkit-backdrop-filter: blur(24px);
+    /* Push the header's own content below the status bar / camera cutout while
+       the frosted background still bleeds up behind it. */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Mobile bottom navigation — floating island */
+  .mobile-nav {
+    @apply fixed bottom-0 left-0 right-0 z-50 md:hidden;
+    padding: 0 12px;
+    /* 10px design gap + whatever the gesture bar / home indicator occupies. */
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    /* Landscape cutouts eat into the sides; keep the pill off the notch. */
+    padding-left: calc(12px + env(safe-area-inset-left));
+    padding-right: calc(12px + env(safe-area-inset-right));
+    background: transparent;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  /* Frosted glass bleed — thin edge only */
+  .mobile-nav::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    height: 20px;
+    pointer-events: none;
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.15) 100%
+    );
+  }
+
+  .mobile-nav > div {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border-radius: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.95);
+    border-left: 1px solid rgba(255, 255, 255, 0.7);
+    border-right: 1px solid rgba(255, 255, 255, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      0 8px 20px rgba(0, 0, 0, 0.09),
+      0 24px 48px rgba(0, 0, 0, 0.08),
+      0 4px 28px hsl(217 91% 55% / 0.10);
+    overflow: hidden;
+  }
+
+  /* Desktop sidebar */
+  .desktop-sidebar {
+    @apply glass fixed left-4 top-4 bottom-4 w-64 rounded-2xl p-6 z-40 hidden md:block;
+    /* Tablet-sized Android devices hit this breakpoint too, and they are just as
+       edge-to-edge as phones. These override the top-4/bottom-4/left-4 offsets
+       from @apply above (plain declarations win over the expanded utilities in
+       the same rule) so the 1rem gap is measured from the safe area, not from
+       the physical screen edge. */
+    top: calc(1rem + env(safe-area-inset-top));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    left: calc(1rem + env(safe-area-inset-left));
+  }
+
+  /* Scroll container for AppLayout's <main>.
+
+     This replaces the pt-14/pb-24 utilities that used to live on the element.
+     They had to move into CSS because the offsets now need env() insets added
+     to them, and an inline style would have clobbered the md: overrides.
+     14 = 3.5rem (mobile header height), 24 = 6rem (bottom nav island). */
+  .app-main-safe {
+    padding-top: calc(3.5rem + env(safe-area-inset-top));
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 768px) {
+    /* Desktop lays content out beside the sidebar, so it owns no fixed chrome
+       at the top or bottom — matches the old md:pt-0 md:pb-0. */
+    .app-main-safe {
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+  }
+}

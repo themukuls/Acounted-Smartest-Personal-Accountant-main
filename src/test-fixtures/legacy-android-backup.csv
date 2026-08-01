@@ -1,0 +1,84 @@
+section,profiles
+columns,id,email,phone,pin_hash,display_name,onboarding_completed,created_at,updated_at
+PROFILES,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,rahul.sharma@gmail.com,9876543210,$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy,Rahul Sharma,true,2025-04-12 09:14,2026-07-28 21:03
+
+section,transactions
+columns,id,user_id,created_at,updated_at,type,amount,category,account,description,transaction_date
+TRANSACTIONS,1a4c8e2b-0f37-4d92-b6a5-8e1c30d7f942,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-07-05 19:24,2026-07-05 19:24,expense,2450.5,Groceries,upi,"Big Bazaar, Andheri West",2026-07-05 19:22
+TRANSACTIONS,2b5d9f3c-1e48-4a03-c7b6-9f2d41e8a053,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-07-06 23:05,2026-07-06 23:05,expense,899,Food & Dining,credit_card,"Dinner at ""The Bombay Canteen""",2026-07-06 22:48
+TRANSACTIONS,3c6e0a4d-2f59-4b14-d8c7-0a3e52f9b164,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-07-01 10:02,2026-07-01 10:02,income,85000,Salary,bank,July salary credit,2026-07-01 10:00
+TRANSACTIONS,4d7f1b5e-3a6a-4c25-e9d8-1b4f63a0c275,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-07-04 08:31,2026-07-04 08:31,expense,1200,Transport,cash,,2026-07-04 08:30
+TRANSACTIONS,5e802c6f-4b7b-4d36-fae9-2c5a74b1d386,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-07-03 08:16,2026-07-03 08:16,expense,15000,Rent,bank,Flat rent - Powai,2026-07-03 08:15
+TRANSACTIONS,6f913d70-5c8c-4e47-0bfa-3d6b85c2e497,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-07-08 22:42,2026-07-08 22:42,expense,349,Entertainment,upi,Netflix subscription,2026-07-08 22:41
+
+section,income_details
+columns,id,user_id,income_type,monthly_salary,basic_salary,other_allowances,monthly_other_income,form_data,full_name,pan,hra,standard_deduction,created_at,updated_at
+INCOME_DETAILS,7a024e81-6d9d-4f58-1c0b-4e7c96d3f5a8,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,salaried,85000,42500,12750,5000,"{""regime"":""new"",""employerName"":""Infosys Ltd"",""hraClaimed"":true,""cityTier"":""metro""}",Rahul Sharma,ABCDE1234F,17000,75000,2025-04-12 09:20,2026-06-30 11:47
+
+section,income_sources
+columns,id,user_id,source_name,amount,frequency,created_at,updated_at
+INCOME_SOURCES,8b135f92-7e0e-4a69-2d1c-5f8da7e406b9,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,Freelance design work,5000,monthly,2025-06-02 14:10,2026-05-19 17:33
+
+section,expense_categories
+columns,id,user_id,category_name,category_type,frequency,amount,created_at,updated_at
+EXPENSE_CATEGORIES,9c2460a3-8f1f-4b7a-3e2d-609eb8f517ca,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,Rent,fixed,monthly,15000,2025-04-12 09:26,2026-04-01 10:05
+EXPENSE_CATEGORIES,0d3571b4-9020-4c8b-4f3e-71afc90618db,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,Groceries,variable,monthly,8000,2025-04-12 09:27,2026-04-01 10:05
+
+section,investment_types
+columns,id,user_id,investment_name,investment_type,amount,risk_level,interest_rate,created_at,updated_at
+INVESTMENT_TYPES,1e4682c5-a131-4d9c-5a4f-82b0da1729ec,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,SBI Bluechip Fund - Direct Growth,mutual_fund,5000,medium,12.5,2025-05-08 12:44,2026-07-10 09:12
+
+section,monthly_budgets
+columns,id,user_id,budget_month,budget_start_date,budget_end_date,fixed_budget,variable_budget,total_budget,created_at,updated_at
+MONTHLY_BUDGETS,2f5793d6-b242-4e0d-6b50-93c1eb283afd,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-07,2026-07-01 00:00,2026-07-31 00:00,22000,18000,40000,2026-06-30 21:15,2026-07-28 20:58
+
+section,variable_budget_entries
+columns,id,user_id,created_at,updated_at,budget_month,category_name,allocated_amount,notes
+
+section,savings_goals
+columns,id,user_id,goal_name,goal_amount,target_months,monthly_save_amount,weekly_save_amount,monthly_spend_amount,weekly_spend_amount,created_at,updated_at
+SAVINGS_GOALS,3a68a4e7-c353-4f1e-7c61-a4d2fc394b0e,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,Goa trip with family,60000,12,5000,1153.85,,,2025-11-21 19:02,2026-07-15 08:24
+
+section,udhar_entries
+columns,id,user_id,created_at,updated_at,type,person_name,lender_name,amount,due_date,is_settled,phone_number,description,payments,amount_paid
+UDHAR_ENTRIES,4b79b5f8-d464-4a2f-8d72-b5e30d4a5c1f,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-05-14 16:38,2026-07-20 13:09,given,Amit Verma,,12000,2026-09-30,false,9812345678,"Lent for bike repair, to be returned in parts","[{""id"":""4d81c0a2-1f6e-4b8a-9c30-7e51d2a04f63"",""amount"":4000.0,""date"":""2026-06-15"",""note"":""UPI part payment""},{""id"":""9c07f3b5-2a8d-4e17-b046-3f92c85d1e70"",""amount"":2000.0,""date"":""2026-07-20"",""note"":""""}]",6000
+UDHAR_ENTRIES,5c8ac609-e575-4b30-9e83-c6f41e5b6d20,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,2026-06-02 11:20,2026-06-02 11:20,taken,,Priya Nair,25000,2026-10-15,false,9823456789,Borrowed for laptop upgrade,[],0
+
+section,recall_products
+columns,id,user_id,name,category,brand,model_number,serial_number,purchase_date,purchase_price,purchased_from,warranty_months,warranty_expiry,extended_warranty,extended_warranty_provider,extended_warranty_expiry,service_interval_months,last_service_date,next_service_date,service_centre_name,service_centre_phone,service_history,service_notes,notes,warranty_note,extended_warranty_note,additional_warranties,payment_mode,amount_paid_upfront,emi_enabled,emi_amount,emi_tenure_months,emi_start_date,emi_interest_rate,emi_bank_or_provider,emi_account_last4,down_payment,insurance_provider,insurance_policy_number,insurance_renewal_date,insurance_premium,emi_budget_added,created_at,updated_at,extended_warranty_months
+RECALL_PRODUCTS,6d9bd71a-f686-4c41-af94-d7052f6c7e31,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,"Samsung 55"" QLED TV",electronics,Samsung,QA55Q60CAKLXL,SN2026TV884213,2026-03-18,74990,"Croma, Phoenix Marketcity",24,2028-03-18,true,OneAssist,2029-03-18,12,,2027-03-18,Samsung Service Center Kurla,1800407267864,[],,Wall mounted in living room,Invoice stored in email,,[],emi,14990,true,5000,12,2026-04-05,13.5,HDFC Bank,4417,14990,,,,0,true,2026-03-18 20:11,2026-07-12 18:40,
+
+section,user_notifications
+columns,user_id,notification_id,seen_at
+USER_NOTIFICATIONS,3f2a91c4-7b6d-4e58-9a01-2c5d8e7f4b10,budget-overspend-2026-07,2026-07-22 07:45
+
+section,lendr_groups
+columns,id,user_id,name,emoji,members,created_at,updated_at
+
+section,lendr_expenses
+columns,id,group_id,user_id,description,total_amount,paid_by_member_id,date,splits,created_at,updated_at
+
+section,ai_tax_planner_input
+columns,id,user_id,age_category,resident_status,city_of_residence,active_income_streams,employment_type,annual_gross_income,annual_rent_paid,business_turnover,business_digital_percent,professional_receipts,profession_type,rental_gross_receipts,rental_municipal_taxes,rental_home_loan_interest,equity_stcg,equity_ltcg,other_ltcg,other_stcg,other_income,home_loan_principal,home_loan_interest,tax_saving_investments,health_insurance_premiums,education_loan_interest,donations_80g,risk_appetite,liquidity_needs,created_at,updated_at
+
+section,ai_tax_planner_output
+columns,id,user_id,recommendations_json,created_at,updated_at
+
+section,advance_tax_payments
+columns,id,user_id,financial_year,installment,due_date,estimated_amount,paid_amount,paid_date,is_paid,created_at,updated_at
+
+section,capital_gains_entries
+columns,id,user_id,asset_type,asset_name,purchase_date,sale_date,purchase_price,sale_price,quantity,financial_year,created_at,updated_at
+
+section,tax_calendar_state
+columns,id,user_id,financial_year,checked_event_ids,updated_at
+
+section,salary_restructuring
+columns,id,user_id,gross_ctc,basic,hra,lta,special_allowance,nps_employer,other_allowances,regime,rent_paid_annual,city,sec80c,sec80d,sec80ccd1b,home_loan_interest,other_deductions,updated_at
+
+section,tds_entries
+columns,id,user_id,financial_year,deductor_name,tds_section,income_type,tds_amount,income_amount,quarter,form_type,is_verified,created_at,updated_at
+
+section,itr_checklist
+columns,id,user_id,financial_year,item_key,category,is_completed,notes,updated_at
+

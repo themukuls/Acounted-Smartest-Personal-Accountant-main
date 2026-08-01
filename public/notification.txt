@@ -1,0 +1,29 @@
+ID: welcome-001
+DATE: 2025-09-01 10:00:00
+HEADING: Welcome to Vidhence!
+TEXT: We're thrilled to have you on board! Start your financial journey by setting up your budget and tracking your expenses.
+[Learn more about themukuls team](https://www.instagram.com/themukuls)
+
+---
+
+ID: tax-update-002
+DATE: 2025-09-15 14:30:00
+HEADING: Important Tax Update for FY 2025-26
+TEXT: The new financial year brings changes to tax regulations. Use our AI Tax Planner to optimize your savings.
+[Access the Tax Planner](https://www.vidhence.com/tax-planner-ai)
+
+---
+
+ID: backup-reminder-003
+DATE: 2025-10-01 09:00:00
+HEADING: Don't Forget to Backup Your Data!
+TEXT: As an offline-first app, your data is stored locally. Regular backups ensure your financial history is safe.
+You can backup your data from the profile menu.
+
+---
+
+ID: investment-tip-004
+DATE: 2025-10-20 11:45:00
+HEADING: Boost Your Investments
+TEXT: Consider diversifying your portfolio to maximize returns. Our AI insights can help you find new opportunities.
+[Explore Investment Insights](https://www.vidhence.com/dashboard)

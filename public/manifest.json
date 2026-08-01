@@ -1,0 +1,9 @@
+{
+  "name": "Acounted - Your Personal Accountant",
+  "short_name": "Acounted",
+  "description": "Your personal AI accountant for taxes, budgets, savings, warranties and more. Built for India.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb"
+}

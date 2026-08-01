@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover is REQUIRED for Android 15 / targetSdk 35 edge-to-edge.
+         Without it the WebView is letterboxed inside the system bars and
+         env(safe-area-inset-*) resolves to 0, so the bottom nav would sit
+         underneath the gesture bar. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Acounted - Personal AI Accountant</title>
+    <meta name="description" content="Your personal AI accountant for taxes, budgets, savings, warranties and more. Built for India. Your data stays on your device — private and secure." />
+    <meta name="author" content="Acounted" />
+
+    <meta property="og:title" content="Acounted - AI Personal Accountant" />
+    <meta property="og:description" content="Your personal AI accountant for taxes, budgets, savings, and more. Built for India." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://acounted.com" />
+    <meta property="og:image" content="/app-assets/acounted-logo.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    
+    <meta name="twitter:site" content="" />
+    <meta name="twitter:image" content="/app-assets/acounted-logo.png" />
+
+    <link rel="canonical" href="https://acounted.com" />
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.tsx"></script>
+    <!-- Service worker registration lives in src/main.tsx, which gates it behind
+         isNative(). It used to also be duplicated here as an inline script, but
+         that copy ran unconditionally and would have re-registered the worker
+         inside the Capacitor WebView (stale-asset bugs after an app update)
+         no matter what main.tsx decided. Do not re-add it here. -->
+  </body>
+</html>

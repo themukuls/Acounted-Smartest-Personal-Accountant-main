@@ -1,0 +1,103 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+node_modules
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Web build output
+# ─────────────────────────────────────────────────────────────────────────────
+dist
+dist-ssr
+*.local
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Android / Gradle build artifacts
+#
+# THIS SECTION IS WHY PUSHES WERE FAILING ON WINDOWS.
+#
+# Gradle writes intermediates into paths like
+#   android/app/build/intermediates/desugar_graph/debug/dexBuilderDebug/out/
+#     currentProject/jar_<64-hex-char-sha>_bucket_5/graph.bin
+# which is 176 characters on its own. Added to a checkout root of ~88 chars
+# that is 264 — past Windows' 260-character MAX_PATH — and git aborts.
+#
+# None of it belongs in version control anyway: every file here is regenerated
+# by `npm run build`, `npx cap sync android` and `./gradlew`. For reference,
+# the longest path in actual SOURCE is 65 characters, so no folder needs
+# renaming.
+# ─────────────────────────────────────────────────────────────────────────────
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/.gradle/
+android/capacitor-cordova-android-plugins/.gradle/
+android/.idea/
+android/.kotlin/
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
+
+# The web bundle that `cap sync` copies into the native project. Regenerated
+# from dist/ on every sync — committing it would double the repo and guarantee
+# conflicts on files nobody edits by hand.
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Secrets and machine-local config — MUST NOT be committed
+# ─────────────────────────────────────────────────────────────────────────────
+# Points at this machine's Android SDK; meaningless (and broken) elsewhere.
+android/local.properties
+
+# Release signing. Losing the keystore means never being able to update the app
+# on Play again — back it up somewhere safe, just never in the repo.
+*.keystore
+*.jks
+keystore.properties
+android/keystore.properties
+
+.env
+.env.local
+.env.*.local
+# .env.example IS tracked on purpose — it documents VITE_API_BASE_URL.
+!.env.example
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Artefacts you might produce by hand
+# ─────────────────────────────────────────────────────────────────────────────
+*.apk
+*.aab
+android/app/release/
+android/app/debug/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logs
+# ─────────────────────────────────────────────────────────────────────────────
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Editors / OS
+# ─────────────────────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scratch
+# ─────────────────────────────────────────────────────────────────────────────
+tmp-*
+*.tmp
