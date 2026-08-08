@@ -9,6 +9,8 @@ import { AssistantFab } from "@/components/assistant/AssistantFab";
 import { AssistantSheet } from "@/components/assistant/AssistantSheet";
 import { AssistantSettingsModal } from "@/components/assistant/AssistantSettingsModal";
 import { useNudgeEngine } from "@/hooks/useNudges";
+import { TrialBanner } from "@/components/paywall/TrialBanner";
+import { LapsedBar } from "@/components/paywall/LapsedBar";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -49,6 +51,13 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           See .app-main-safe in index.css. */}
       <main className="md:ml-72 md:mr-4 md:mt-4 md:mb-4 min-h-screen md:min-h-[calc(100vh-2rem)] app-main-safe">
         <div className="p-4 h-full">
+          {/* Entitlement notices sit in the content flow rather than fixed to
+              the viewport: a fixed strip would have to fight the mobile header,
+              the bottom nav and two FABs for safe-area space, and neither of
+              these is urgent enough to earn that. Each renders null unless it
+              applies, so on the normal `active` path this costs nothing. */}
+          <TrialBanner />
+          <LapsedBar />
           {children}
         </div>
       </main>

@@ -10,6 +10,8 @@ import { useRecurringSubscriptions } from "@/components/recurring/useRecurringSu
 import { DismissedRow, SubscriptionCard } from "@/components/recurring/SubscriptionCard";
 import { daysUntilNext } from "@/lib/recurring/detect";
 import { GlobalSearchDialog } from "@/components/search/GlobalSearchDialog";
+import { useGate } from "@/components/paywall/useGate";
+import { LockedNotice } from "@/components/paywall/LockedNotice";
 
 type SortMode = "cost" | "next" | "recent";
 
@@ -41,6 +43,12 @@ const Subscriptions = () => {
   const [sort, setSort] = useState<SortMode>("cost");
   const [showHidden, setShowHidden] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+
+  // This whole page is derived analysis over the ledger, which is what
+  // `canUseInsights` covers. The underlying transactions are untouched and one
+  // tap away — the locked state links straight back to them.
+  const { guard, check } = useGate();
+  const insightsLocked = check("canUseInsights") !== null;
 
   // One clock for the whole screen — cards computing their own `new Date()`
   // could disagree across a midnight boundary mid-render.
@@ -96,13 +104,21 @@ const Subscriptions = () => {
             variant="outline"
             size="sm"
             className="h-9 w-9 p-0 rounded-xl border-border/60 pointer-events-auto shrink-0"
-            onClick={() => setShowSearch(true)}
+            onClick={() => { if (guard("canUseInsights")) setShowSearch(true); }}
             aria-label="Search transactions"
           >
             <Search className="h-4 w-4" />
           </Button>
         </div>
 
+        {insightsLocked ? (
+          <LockedNotice capability="canUseInsights">
+            <Link to="/expenses" className="pointer-events-auto text-xs font-semibold text-primary">
+              Back to my transactions
+            </Link>
+          </LockedNotice>
+        ) : (
+        <>
         {/* ── Hero: the annualised number ──────────────────────────────── */}
         <GlassCard className="p-4 space-y-3" hover={false}>
           <div className="flex items-center justify-between">
@@ -213,6 +229,8 @@ const Subscriptions = () => {
             at least three occurrences on a regular schedule before it shows up here, so a brand-new
             subscription takes a few months to appear.
           </p>
+        )}
+        </>
         )}
       </div>
 

@@ -36,6 +36,8 @@ import {
   getTaxPlannerInput,
 } from "@/integrations/indexeddb/services/taxPlannerService";
 import type { IncomeStream } from "@/pages/TaxPlannerAI";
+import { useGate } from "@/components/paywall/useGate";
+import { LockedNotice } from "@/components/paywall/LockedNotice";
 
 const WHISPER_ICON: Record<Whisper["severity"], typeof Clock> = {
   deadline: Clock,
@@ -113,6 +115,12 @@ const TaxCopilot = () => {
   const navigate = useNavigate();
   const currentFY = getCurrentFinancialYear();
 
+  // The conversation is the paid part of this screen. The projected-tax figure
+  // in the header and the ITR draft download are NOT gated — those are reading
+  // and exporting your own numbers.
+  const { guard, check } = useGate();
+  const taxLocked = check("canUseTax") !== null;
+
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -170,6 +178,11 @@ const TaxCopilot = () => {
 
   const ask = useCallback(
     async (question: string) => {
+      // Every route into the copilot — the composer, the voice mic, a whisper
+      // card, a suggestion chip — lands here, so this one line gates all of
+      // them. Hiding the composer alone would leave the mic and the chips live.
+      if (!guard("canUseTax")) return;
+
       const q = question.trim();
       if (!q || thinking) return;
 
@@ -208,7 +221,7 @@ const TaxCopilot = () => {
         if (!controller.signal.aborted) setThinking(false);
       }
     },
-    [state, thinking],
+    [state, thinking, guard],
   );
 
   const {
@@ -231,6 +244,9 @@ const TaxCopilot = () => {
   // Routed through exportTextFile because an anchor `download` is a silent
   // no-op inside the Android WebView — on native this writes the file and
   // opens the share sheet instead.
+  //
+  // NOT gated, and never will be. `canExport` is true in every entitlement
+  // status; a lapsed user can still take their ITR draft out of the app.
   const downloadITRDraft = async () => {
     if (!state) return;
     try {
@@ -313,7 +329,17 @@ const TaxCopilot = () => {
           </div>
         )}
 
-        {/* ── Conversation ────────────────────────────────────────────── */}
+        {/* ── Conversation ──────────────────────────────────────────────
+            Replaced wholesale when the subscription doesn't cover it, rather
+            than left visible-but-dead. The numbers above and the ITR draft
+            download stay exactly where they were. */}
+        {taxLocked ? (
+          <LockedNotice capability="canUseTax">
+            <p className="text-[11px] text-muted-foreground">
+              Your projected tax above, and the ITR draft download, still work.
+            </p>
+          </LockedNotice>
+        ) : (
         <div className="flex flex-col rounded-2xl border border-border/50 bg-background/40 p-3">
           <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pb-2 max-h-[45vh] min-h-[220px]">
             {messages.map((m, i) => (
@@ -398,6 +424,7 @@ const TaxCopilot = () => {
             </button>
           </form>
         </div>
+        )}
 
         {/* ── Tax tools ───────────────────────────────────────────────── */}
         <div className="space-y-3">

@@ -2,9 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import React from "react";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PaywallScreen } from "@/components/paywall/PaywallScreen";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { InstallPromptProvider } from "@/contexts/InstallPromptContext";
 import { BackupPromptProvider } from "@/contexts/BackupPromptContext";
@@ -144,6 +146,74 @@ function useNativeStatusBar() {
   }, []);
 }
 
+/**
+ * Paths that must stay reachable with no subscription at all.
+ *
+ * "/" and "/auth" are how a person signs up in the first place — walling them
+ * would lock a brand-new install out of creating the account the subscription
+ * is going to attach to. "/subscribe" is the paywall itself.
+ */
+const OPEN_PATHS = new Set(["/", "/auth", "/subscribe"]);
+
+/**
+ * The wall — shown ONLY for status `none`, i.e. someone who has never
+ * subscribed and hasn't reached the offer yet.
+ *
+ * Three things this deliberately does NOT do:
+ *
+ *  1. It does not gate the route. The app underneath renders normally; this is
+ *     an overlay on top. Nothing waits on it, so a slow or failed billing check
+ *     can never turn into a blank screen.
+ *  2. It does not render before the stored snapshot has been read. `showPaywall`
+ *     is false until hydration precisely so a paying subscriber never sees the
+ *     offer flash on a cold start.
+ *  3. It NEVER appears for `lapsed`. A lapsed user gets the whole app in
+ *     read-only mode — their records, their exports, their history — with the
+ *     paid actions refusing individually. Walling them off from two years of
+ *     their own financial data because a card expired is the exact harm the
+ *     entitlement core was written to prevent.
+ */
+function PaywallWall() {
+  const { user } = useAuth();
+  const { showPaywall, refresh } = useEntitlement();
+  const { pathname } = useLocation();
+
+  if (!user) return null;
+  if (OPEN_PATHS.has(pathname)) return null;
+  if (!showPaywall) return null;
+
+  return (
+    <div className="pointer-events-auto fixed inset-0 z-50 overflow-y-auto bg-background">
+      {/* No onDismiss: at `none` there is no subscription history and no app
+          behind this to return to. A lapsed user reaches /subscribe instead,
+          which does pass onDismiss. */}
+      <PaywallScreen variant="onboarding" onSubscribed={() => refresh()} />
+    </div>
+  );
+}
+
+/**
+ * /subscribe — the resubscribe route every locked surface links to.
+ *
+ * `onDismiss` is always supplied here, and it always works. That is the whole
+ * point of the route existing: a lapsed user has to be able to walk up to the
+ * offer, decide against it, and land back on their own records.
+ */
+function SubscribeRoute() {
+  const navigate = useNavigate();
+
+  const leave = () => {
+    // Same history-idx trick as the Android back button: idx > 0 means there is
+    // a screen behind us. Otherwise send them somewhere with their data on it,
+    // never to a dead end.
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) navigate(-1);
+    else navigate("/expenses", { replace: true });
+  };
+
+  return <PaywallScreen variant="lapsed" onDismiss={leave} onSubscribed={leave} />;
+}
+
 // Hosts the routes plus the app-wide native behaviours.
 // (The old useAutoSync() lived here; persistence is now the repository's job —
 // it flushes pending writes on background without any React involvement.)
@@ -249,8 +319,17 @@ function AppContent() {
           <Recall />
         </ProtectedRoute>
       } />
+      {/* The offer, reachable from every locked surface and from the lapsed
+          bar. Protected because it is an in-app screen about an existing
+          account, not a marketing page. */}
+      <Route path="/subscribe" element={
+        <ProtectedRoute>
+          <SubscribeRoute />
+        </ProtectedRoute>
+      } />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    <PaywallWall />
     </>
   );
 }

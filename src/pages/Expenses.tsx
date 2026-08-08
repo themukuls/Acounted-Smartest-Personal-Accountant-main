@@ -19,6 +19,7 @@ import DOMPurify from 'dompurify';
 import { getMonthlyBudgets } from "@/integrations/indexeddb/services/monthlyBudgetService";
 import { getMonthlyTransactions, saveTransaction, deleteTransaction } from "@/integrations/indexeddb/services/dataService";
 import { useQueryClient } from "@tanstack/react-query";
+import { useGate } from "@/components/paywall/useGate";
 
 interface Transaction {
   id: string;
@@ -36,6 +37,11 @@ const Expenses = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  // Every paid action on this page goes through `guard()` inside its handler.
+  // The controls stay visible on purpose — a lapsed user pressing + gets an
+  // explanation and a way to resubscribe, not a page that has quietly lost its
+  // buttons. Reading the ledger below is never gated.
+  const { guard } = useGate();
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +165,11 @@ const Expenses = () => {
   };
 
   const handleSaveTransaction = async (data: { account: string; category: string; amount: string; note: string; type: 'income' | 'expense'; transactionId?: string; transaction_date: string }) => {
+    // The write gate, at the top of the write path itself. This function is
+    // also the `onSave` the dialog calls, so guarding here covers the dialog,
+    // the FAB and any future caller — not just the button we can see.
+    if (!guard('canWrite')) throw new Error("Subscription required");
+
     try {
       if (!user) {
         toast({
@@ -208,6 +219,10 @@ const Expenses = () => {
   };
 
   const handleDeleteTransaction = async (transactionId: string, categoryName: string) => {
+    // Deleting is a write. The confirm dialog can be reached whatever the
+    // status; the deletion itself cannot.
+    if (!guard('canWrite')) return;
+
     try {
       await deleteTransaction(transactionId);
 
@@ -235,6 +250,10 @@ const Expenses = () => {
   };
 
   const handleEditTransactionClick = (transaction: Transaction, weekLabel: string) => {
+    // Opening the EDIT form is a write intent. The row itself already shows the
+    // amount, date, account and note, so nothing readable is lost by refusing.
+    if (!guard('canWrite')) return;
+
     setEditingTransaction({
       ...transaction,
       transaction_date: transaction.transaction_date
@@ -245,6 +264,8 @@ const Expenses = () => {
   };
 
   const handleOpenAddTransactionDialog = () => {
+    if (!guard('canWrite')) return;
+
     setEditingTransaction(null);
     setFormDialogType(undefined);
     setShowTransactionFormDialog(true);
@@ -430,7 +451,7 @@ const Expenses = () => {
               variant="outline"
               size="sm"
               className="h-9 w-9 p-0 rounded-xl border-border/60 pointer-events-auto"
-              onClick={() => setShowSearchDialog(true)}
+              onClick={() => { if (guard('canUseInsights')) setShowSearchDialog(true); }}
               aria-label="Search transactions"
             >
               <Search className="h-4 w-4" />

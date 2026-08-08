@@ -5,10 +5,20 @@
  * never goes anywhere except the Authorization header of the provider the user
  * picked — no telemetry, no proxy, no logging.
  *
- * IMPORTANT: this key is deliberately excluded from backup exports. See the
- * SENSITIVE_LOCALSTORAGE_KEYS list in src/utils/dbSync.ts — without that skip,
- * exportFullDatabase() would copy the raw key into every backup JSON the user
- * might email to themselves or upload somewhere.
+ * IMPORTANT: this key must never reach a backup file. Backups are emailed,
+ * uploaded and passed between devices; a third-party API key sitting in one in
+ * plaintext is a credential leak waiting to happen.
+ *
+ * That protection is now STRUCTURAL rather than a skip-list. `backup.ts` and
+ * `csvBackup.ts` serialise only the repository stores enumerated in
+ * `src/integrations/storage/stores.ts`, and this key lives in localStorage
+ * instead — so there is no code path that could pick it up. (An earlier design
+ * did rely on a SENSITIVE_LOCALSTORAGE_KEYS skip-list in dbSync.ts; that file
+ * has since been reduced to notifyDatabaseChanged and the list is gone.)
+ *
+ * If you ever add a store for credentials, this guarantee disappears — keep
+ * secrets out of the repository layer. See also src/lib/entitlement/storage.ts,
+ * which keeps subscription state out of backups for the same reason.
  */
 
 export const LLM_CONFIG_KEY = 'vidhence_llm_config';

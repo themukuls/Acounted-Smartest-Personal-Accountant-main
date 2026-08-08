@@ -26,6 +26,7 @@ import {
   getLearnedMappings,
   rememberMapping,
 } from '@/integrations/indexeddb/services/learnedTaxMappingsService';
+import { useGate } from '@/components/paywall/useGate';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -447,6 +448,9 @@ export const TransactionFormDialog = ({
 }: TransactionFormDialogProps) => {
   const { toast } = useToast();
   const { user }  = useAuth();
+  // The dialog can be opened by more than one caller, and a disabled Save
+  // button is only a suggestion — so the gate lives in handleSave() below.
+  const { guard }  = useGate();
 
   const [formData, setFormData]   = useState({ account: '', category: '', amount: '', note: '' });
   const [currentFormType, setCurrentFormType] = useState<'income' | 'expense' | undefined>(undefined);
@@ -537,6 +541,11 @@ export const TransactionFormDialog = ({
 
   // ── Save ──────────────────────────────────────────────────────────────
   const handleSave = async () => {
+    // First statement in the handler, before validation and before onSave().
+    // Returning here — rather than relying on the button being hidden — is what
+    // makes this an actual gate.
+    if (!guard('canWrite')) return;
+
     if (!currentFormType) {
       toast({ title: "Pick a type", description: "Select Expense or Income first.", variant: "destructive" });
       return;

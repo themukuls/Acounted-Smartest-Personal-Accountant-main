@@ -1,7 +1,8 @@
 "use client";
 
-import { Mic } from "lucide-react";
+import { Mic, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGate } from "@/components/paywall/useGate";
 
 interface AssistantFabProps {
   onClick: () => void;
@@ -30,23 +31,39 @@ interface AssistantFabProps {
  */
 export const AssistantFab = ({ onClick }: AssistantFabProps) => {
   const { user } = useAuth();
+  const { check } = useGate();
 
   // Nothing to log against until someone is signed in.
   if (!user) return null;
+
+  // Without the subscription the button stays, but it stops promising to
+  // listen. Removing it outright would leave a lapsed user with a feature that
+  // silently vanished and nothing to tap to find out why; the sheet it opens
+  // explains the situation and links to /subscribe. The mic is never opened —
+  // see the auto-start effect in AssistantSheet.
+  const locked = check("canUseAssistant") !== null;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Start voice quick add — begins listening"
+      aria-label={
+        locked
+          ? "Voice quick add — paused, subscription ended"
+          : "Start voice quick add — begins listening"
+      }
       className="pointer-events-auto fixed right-4 [--fab-bottom:6rem] md:[--fab-bottom:1.5rem] h-14 w-14 rounded-full z-40 flex items-center justify-center text-white transition-transform hover:scale-105 active:scale-95"
       style={{
         bottom: "calc(var(--fab-bottom, 6rem) + env(safe-area-inset-bottom, 0px))",
-        background: "linear-gradient(135deg, #1E3A8A, #2563EB)",
-        boxShadow: "0 8px 24px rgba(37, 99, 235, 0.35)",
+        background: locked
+          ? "linear-gradient(135deg, #64748B, #94A3B8)"
+          : "linear-gradient(135deg, #1E3A8A, #2563EB)",
+        boxShadow: locked
+          ? "0 6px 18px rgba(100, 116, 139, 0.28)"
+          : "0 8px 24px rgba(37, 99, 235, 0.35)",
       }}
     >
-      <Mic className="h-6 w-6" />
+      {locked ? <Lock className="h-5 w-5" /> : <Mic className="h-6 w-6" />}
     </button>
   );
 };

@@ -21,6 +21,8 @@ import { ProviderError } from "@/lib/assistant/providers";
 import { isWritable, type AssistantAction, type WritableAction } from "@/lib/assistant/types";
 import { ActionReviewCard } from "./ActionReviewCard";
 import { VoiceOrb, type VoiceOrbState } from "./VoiceOrb";
+import { useGate } from "@/components/paywall/useGate";
+import { LockedNotice } from "@/components/paywall/LockedNotice";
 
 interface AssistantSheetProps {
   open: boolean;
@@ -54,6 +56,11 @@ export const AssistantSheet = ({ open, onOpenChange, onOpenSettings }: Assistant
   const configured = getLLMConfig() !== null;
   const abortRef = useRef<AbortController | null>(null);
 
+  // The assistant is a paid surface. `locked` drives what the sheet renders;
+  // `guard` is what actually stops the work, inside each handler.
+  const { guard, check } = useGate();
+  const locked = check("canUseAssistant") !== null;
+
   // Read inside the speech callback, which can fire a beat after the sheet has
   // already been dismissed. Kept as a ref so the callback never goes stale.
   const openRef = useRef(open);
@@ -61,6 +68,11 @@ export const AssistantSheet = ({ open, onOpenChange, onOpenSettings }: Assistant
 
   const runExtraction = useCallback(
     async (utterance: string) => {
+      // Guarded here, not at the mic: speech can also arrive from the
+      // recogniser callback and from the example chips, and every one of those
+      // paths ends up in this function.
+      if (!guard("canUseAssistant")) return;
+
       const trimmed = utterance.trim();
       if (!trimmed || !user) return;
 
@@ -101,7 +113,7 @@ export const AssistantSheet = ({ open, onOpenChange, onOpenSettings }: Assistant
         );
       }
     },
-    [user],
+    [user, guard],
   );
 
   // Voice input feeds the same path as typing.
@@ -155,10 +167,12 @@ export const AssistantSheet = ({ open, onOpenChange, onOpenSettings }: Assistant
       return;
     }
     if (autoStartedRef.current) return;
-    if (!configured || !micSupported || micDenied) return;
+    // Never open the microphone for a surface that is going to refuse the
+    // result anyway — asking for the mic and then saying no would be rude.
+    if (locked || !configured || !micSupported || micDenied) return;
     autoStartedRef.current = true;
     void startListening();
-  }, [open, configured, micSupported, micDenied, startListening]);
+  }, [open, configured, locked, micSupported, micDenied, startListening]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,6 +180,9 @@ export const AssistantSheet = ({ open, onOpenChange, onOpenSettings }: Assistant
   };
 
   const handleSave = async () => {
+    // A review card can outlive the entitlement that produced it — the sheet
+    // could have been open when a resume-time refresh confirmed the lapse.
+    if (!guard("canWrite")) return;
     if (!action || !user) return;
 
     if (!Number.isFinite(action.amount) || action.amount <= 0) {
@@ -236,8 +253,15 @@ export const AssistantSheet = ({ open, onOpenChange, onOpenSettings }: Assistant
           </SheetTitle>
         </SheetHeader>
 
-        {/* ── Not configured ─────────────────────────────────────────── */}
-        {!configured ? (
+        {/* ── Locked ─────────────────────────────────────────────────────
+            Checked before "not configured": telling someone to go and set up
+            an API key for a feature their subscription no longer includes
+            would send them down a dead end. */}
+        {locked ? (
+          <div className="mt-8">
+            <LockedNotice capability="canUseAssistant" />
+          </div>
+        ) : !configured ? (
           <div className="mt-8 flex flex-col items-center gap-4 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
               <Sparkles className="h-6 w-6 text-primary" />
