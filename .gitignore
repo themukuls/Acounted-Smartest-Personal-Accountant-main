@@ -60,7 +60,6 @@ android/keystore.properties
 .env
 .env.local
 .env.*.local
-# .env.example IS tracked on purpose — it documents VITE_API_BASE_URL.
 !.env.example
 
 # ─────────────────────────────────────────────────────────────────────────────

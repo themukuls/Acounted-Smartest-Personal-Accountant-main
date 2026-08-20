@@ -39,6 +39,9 @@ import type {
  */
 export const OFFLINE_GRACE_DAYS = 7;
 
+/** The explicit no-card fallback offered after the Play offer is dismissed. */
+export const LOCAL_TRIAL_DAYS = 7;
+
 /** Distinct days of a confirmed "no entitlement" before we downgrade. */
 export const NEGATIVE_DAYS_TO_LAPSE = 2;
 
@@ -86,6 +89,10 @@ export function effectiveStatus(snap: EntitlementSnapshot, now: number): Entitle
 
   if (now <= snap.expiresAt) return snap.status;
 
+  // A local trial has no renewal in flight to wait for. It ends at the exact
+  // stored timestamp; the offline grace window is only for Play entitlements.
+  if (snap.status === 'trialing' && snap.trialSource === 'local') return 'lapsed';
+
   // Past expiry and we haven't been able to confirm a renewal. Give the benefit
   // of the doubt for the grace window rather than locking out someone whose
   // payment probably went through while they were offline.
@@ -124,8 +131,15 @@ export function reconcile(
       // Cleared deliberately: a confirmed entitlement means any earlier
       // negative reading was wrong or is now irrelevant.
       negativeDays: [],
+      trialSource: result.trialing ? 'play' : null,
+      localTrialStartedAt: snap.localTrialStartedAt,
+      localTrialUsed: snap.localTrialUsed,
     };
   }
+
+  // Google Play correctly reports no purchase during an app-managed trial.
+  // That answer must not shorten or invalidate the local seven days.
+  if (snap.status === 'trialing' && snap.trialSource === 'local') return snap;
 
   // ── Confirmed not entitled ───────────────────────────────────────────────
   const today = dayKey(now);
@@ -150,6 +164,27 @@ export function reconcile(
     expiresAt: null,
     lastVerifiedAt: now,
     negativeDays,
+    trialSource: null,
+    localTrialStartedAt: snap.localTrialStartedAt,
+    localTrialUsed: snap.localTrialUsed,
+  };
+}
+
+/** Start the one-time, no-card fallback trial. Returns the same object if denied. */
+export function beginLocalTrial(
+  snap: EntitlementSnapshot,
+  now: number,
+): EntitlementSnapshot {
+  if (effectiveStatus(snap, now) !== 'none' || snap.localTrialUsed) return snap;
+  return {
+    ...snap,
+    status: 'trialing',
+    plan: null,
+    trialSource: 'local',
+    localTrialStartedAt: now,
+    localTrialUsed: true,
+    expiresAt: now + LOCAL_TRIAL_DAYS * DAY_MS,
+    negativeDays: [],
   };
 }
 

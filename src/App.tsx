@@ -179,6 +179,10 @@ function PaywallWall() {
   const { pathname } = useLocation();
 
   if (!user) return null;
+  // First-run onboarding owns the payment decision. Showing this global wall
+  // before that flow finishes would cover the value screens with a second
+  // paywall and make the app look stuck.
+  if (!(user as { onboarding_completed?: boolean }).onboarding_completed) return null;
   if (OPEN_PATHS.has(pathname)) return null;
   if (!showPaywall) return null;
 

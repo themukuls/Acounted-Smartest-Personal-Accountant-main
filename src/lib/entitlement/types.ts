@@ -13,8 +13,11 @@
 /** Play subscription plans, mirroring the base plans in Play Console. */
 export type PlanId = 'annual' | 'monthly';
 
+/** Where a trial entitlement came from. */
+export type TrialSource = 'play' | 'local';
+
 export type EntitlementStatus =
-  /** Inside the 14-day Play free trial. Full access. */
+  /** Inside a Play or app-managed free trial. Full access. */
   | 'trialing'
   /** Paying. Full access. */
   | 'active'
@@ -41,6 +44,21 @@ export interface EntitlementSnapshot {
    * entitlement. A downgrade needs two DISTINCT days — see reconcile().
    */
   negativeDays: string[];
+  /** Play trials auto-renew; local trials never charge. */
+  trialSource: TrialSource | null;
+  /** Absolute start time for the one-time, no-card local trial. */
+  localTrialStartedAt: number | null;
+  /** Prevents the same local profile from starting the fallback trial twice. */
+  localTrialUsed: boolean;
+}
+
+/** Store-sourced plan copy. Never hard-code a price into the purchase UI. */
+export interface BillingPlanDetails {
+  plan: PlanId;
+  priceLabel: string;
+  billingPeriod: string;
+  trialEligible: boolean;
+  trialDays: number;
 }
 
 /**
@@ -69,7 +87,11 @@ export type BillingResult =
    * We could NOT get an answer — offline, plugin missing, Play Store absent.
    * This must never change the user's status. Ever.
    */
-  | { ok: false; reason: string };
+  | {
+      ok: false;
+      reason: string;
+      kind?: 'cancelled' | 'pending' | 'unavailable' | 'error';
+    };
 
 export const FRESH_INSTALL: EntitlementSnapshot = {
   status: 'none',
@@ -77,4 +99,7 @@ export const FRESH_INSTALL: EntitlementSnapshot = {
   expiresAt: null,
   lastVerifiedAt: null,
   negativeDays: [],
+  trialSource: null,
+  localTrialStartedAt: null,
+  localTrialUsed: false,
 };

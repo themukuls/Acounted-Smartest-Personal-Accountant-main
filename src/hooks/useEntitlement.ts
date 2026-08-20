@@ -31,6 +31,7 @@ import { isNative } from '@/lib/platform';
 import { getBillingAdapter } from '@/lib/entitlement/adapter';
 import {
   capabilitiesOf,
+  beginLocalTrial,
   effectiveStatus,
   needsPaywall,
   reconcile,
@@ -220,6 +221,10 @@ export interface UseEntitlement {
    * cancellation, a missing payment method, or no store at all.
    */
   purchase: (plan: PlanId) => Promise<BillingResult>;
+  /** Restore a subscription already owned by the current Google Play account. */
+  restore: () => Promise<BillingResult>;
+  /** Start the one-time seven-day trial that does not involve Google Play. */
+  startLocalTrial: () => Promise<boolean>;
   /** Deep-link to Play's subscription management. Never throws. */
   manage: () => Promise<void>;
 }
@@ -254,7 +259,35 @@ export function useEntitlement(): UseEntitlement {
     try {
       result = await getBillingAdapter().purchase(plan);
     } catch (err) {
-      result = { ok: false, reason: (err as Error)?.message ?? 'The purchase could not be started.' };
+      result = {
+        ok: false,
+        reason: (err as Error)?.message ?? 'The purchase could not be started.',
+        kind: 'error',
+      };
+    }
+    await commit(result);
+    return result;
+  }, []);
+
+  const startLocalTrial = useCallback(async (): Promise<boolean> => {
+    const stored = await loadEntitlement();
+    const next = beginLocalTrial(stored, Date.now());
+    if (next === stored) return false;
+    await saveEntitlement(next);
+    emit({ snapshot: next, hydrated: true });
+    return true;
+  }, []);
+
+  const restore = useCallback(async (): Promise<BillingResult> => {
+    let result: BillingResult;
+    try {
+      result = await getBillingAdapter().restore();
+    } catch (err) {
+      result = {
+        ok: false,
+        reason: (err as Error)?.message ?? 'Purchases could not be restored.',
+        kind: 'error',
+      };
     }
     await commit(result);
     return result;
@@ -275,6 +308,8 @@ export function useEntitlement(): UseEntitlement {
     hydrated,
     refresh,
     purchase,
+    restore,
+    startLocalTrial,
     manage,
   };
 }

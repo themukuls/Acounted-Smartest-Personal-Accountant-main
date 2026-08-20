@@ -33,13 +33,13 @@ type AnyRecord = Record<string, unknown>;
 const PRODUCT = {
   id: PLAY_SUBSCRIPTION_ID,
   offers: [
-    { id: OFFER_IDS.monthly, pricingPhases: [{ priceMicros: 4_990_000, paymentMode: 'PayAsYouGo' }] },
-    { id: OFFER_IDS.annual, pricingPhases: [{ priceMicros: 39_990_000, paymentMode: 'PayAsYouGo' }] },
+    { id: OFFER_IDS.monthly, pricingPhases: [{ price: '₹99.00', priceMicros: 4_990_000, currency: 'INR', paymentMode: 'PayAsYouGo', billingPeriod: 'P1M' }] },
+    { id: OFFER_IDS.annual, pricingPhases: [{ price: '₹799.00', priceMicros: 39_990_000, currency: 'INR', paymentMode: 'PayAsYouGo', billingPeriod: 'P1Y' }] },
     {
       id: OFFER_IDS.annualTrial,
       pricingPhases: [
-        { priceMicros: 0, paymentMode: 'FreeTrial', billingPeriod: 'P14D' },
-        { priceMicros: 39_990_000, paymentMode: 'PayAsYouGo', billingPeriod: 'P1Y' },
+        { priceMicros: 0, paymentMode: 'FreeTrial', billingPeriod: 'P7D' },
+        { price: '₹799.00', priceMicros: 39_990_000, currency: 'INR', paymentMode: 'PayAsYouGo', billingPeriod: 'P1Y' },
       ],
     },
   ],
@@ -53,6 +53,7 @@ function makeStore(overrides: AnyRecord = {}): AnyRecord {
     get: (id: string) => (id === PLAY_SUBSCRIPTION_ID ? PRODUCT : undefined),
     order: async () => undefined,
     manageSubscriptions: async () => undefined,
+    restorePurchases: async () => undefined,
     when: () => ({ approved: () => ({}) }),
     localTransactions: [] as unknown[],
     verifiedPurchases: [] as unknown[],
@@ -272,8 +273,8 @@ describe('playAdapter — a real answer: entitled', () => {
         localTransactions: [
           transaction({
             purchaseDate: new Date(now - 2 * DAY),
-            // 14-day free trial: bought 2 days ago, 12 days left.
-            expirationDate: new Date(now + 12 * DAY),
+            // 7-day free trial: bought 2 days ago, 5 days left.
+            expirationDate: new Date(now + 5 * DAY),
           }),
         ],
       }),
@@ -286,7 +287,7 @@ describe('playAdapter — a real answer: entitled', () => {
       expect(result.trialing).toBe(true);
       // The trial offer only exists on the annual base plan, so a trial is annual.
       expect(result.plan).toBe('annual');
-      expect(result.expiresAt).toBe(now + 12 * DAY);
+      expect(result.expiresAt).toBe(now + 5 * DAY);
     } else {
       throw new Error('expected an entitled result');
     }
@@ -434,6 +435,26 @@ describe('playAdapter — states we must NOT read as a negative', () => {
 });
 
 describe('playAdapter — offers and purchasing', () => {
+  it('returns eligible plans with Play-supplied prices and trial terms', async () => {
+    install(makeStore());
+    expect(await playAdapter.plans()).toEqual([
+      {
+        plan: 'annual',
+        priceLabel: '₹799.00',
+        billingPeriod: 'per year',
+        trialEligible: true,
+        trialDays: 7,
+      },
+      {
+        plan: 'monthly',
+        priceLabel: '₹99.00',
+        billingPeriod: 'per month',
+        trialEligible: false,
+        trialDays: 0,
+      },
+    ]);
+  });
+
   it('prefers the free-trial offer for the annual plan', () => {
     const offer = pickOffer(PRODUCT, 'annual');
     expect(offer?.id).toBe(OFFER_IDS.annualTrial);
@@ -462,7 +483,7 @@ describe('playAdapter — offers and purchasing', () => {
       order: async (offer: { id: string }) => {
         ordered.push(offer.id);
         (store.localTransactions as unknown[]).push(
-          transaction({ purchaseDate: new Date(now), expirationDate: new Date(now + 14 * DAY) }),
+          transaction({ purchaseDate: new Date(now), expirationDate: new Date(now + 7 * DAY) }),
         );
         return undefined;
       },
@@ -517,7 +538,7 @@ describe('product identifiers', () => {
   it('are the ones Play Console must be configured with', () => {
     expect(PLAY_SUBSCRIPTION_ID).toBe('acounted_pro');
     expect(BASE_PLAN_IDS).toEqual({ annual: 'annual', monthly: 'monthly' });
-    expect(ANNUAL_TRIAL_OFFER_ID).toBe('annual-14day-trial');
-    expect(OFFER_IDS.annualTrial).toBe('acounted_pro@annual@annual-14day-trial');
+    expect(ANNUAL_TRIAL_OFFER_ID).toBe('annual-7day-trial');
+    expect(OFFER_IDS.annualTrial).toBe('acounted_pro@annual@annual-7day-trial');
   });
 });

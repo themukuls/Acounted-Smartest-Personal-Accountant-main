@@ -10,7 +10,7 @@
  * opposite: three steps of data entry (income → expenses → investments) whose
  * very first field asked a stranger for their annual salary, in exchange for
  * nothing. That is a form wearing marketing copy, and it converts nobody who
- * is being asked to pay ₹799 on the same visit.
+ * is being asked to subscribe on the same visit.
  *
  * The order below is deliberate and load-bearing:
  *
@@ -19,14 +19,13 @@
  *                  the actual differentiator, not a feature.
  *   3  get       — three concrete things, tax first because it is the one
  *                  with a deadline and a rupee figure attached.
- *   4  offer     — PaywallScreen, owned by another module. Imported, never
- *                  reimplemented; its prop contract is final.
- *   5  income    — ONE question, with the reason attached, and Skip as a real
+ *   4  income    — ONE question, with the reason attached, and Skip as a real
  *                  button. The old income/expenses/investment steps are gone
  *                  from this flow entirely — they belong in the app, asked at
  *                  the moment they matter.
- *   6  moment    — the app does its job once, on that one number, before the
- *                  user ever sees an empty ledger.
+ *   5  moment    — the app does its job once, on that one number, before asking.
+ *   6  offer     — Play subscription first, with an explicit one-time 7-day
+ *                  no-card trial as the lower-commitment alternative.
  *
  * ── Returning users ──────────────────────────────────────────────────────────
  * `forceStartStepZero` is how MobileHeader and WelcomeHeader open this for
@@ -107,7 +106,7 @@ const SCREEN_COPY: Record<ScreenId, { title: string; lede?: string }> = {
  */
 const MOMENT_TITLE_WHEN_SKIPPED = "That's everything I'll ask";
 
-const FULL_FLOW: ScreenId[] = ['founder', 'refuse', 'get', 'offer', 'income', 'moment'];
+const FULL_FLOW: ScreenId[] = ['founder', 'refuse', 'get', 'income', 'moment', 'offer'];
 const RETURNING_FLOW: ScreenId[] = ['income', 'moment'];
 
 export const OnboardingModal = ({
@@ -318,10 +317,12 @@ export const OnboardingModal = ({
               {screen === 'refuse' && <WhatWeRefuse />}
               {screen === 'get' && <WhatYouGet />}
               {screen === 'offer' && (
-                // Owned by the paywall module. Prop contract is final; no
-                // `onDismiss` here, because during first-run onboarding there
-                // is no app behind this screen to dismiss to.
-                <PaywallScreen variant="onboarding" onSubscribed={() => goNext()} />
+                <PaywallScreen
+                  embedded
+                  variant="onboarding"
+                  onSubscribed={() => void handleFinish()}
+                  onLocalTrialStarted={() => void handleFinish()}
+                />
               )}
               {screen === 'income' && (
                 <IncomeQuestion
@@ -341,11 +342,12 @@ export const OnboardingModal = ({
           <div className="flex items-center justify-end border-t border-border/40 pt-4">
             {screen === 'moment' ? (
               <Button
-                onClick={handleFinish}
+                onClick={isReturning ? handleFinish : goNext}
                 disabled={saving}
                 className="pointer-events-auto h-11 rounded-xl px-7 text-sm font-semibold"
               >
-                {saving ? 'One moment…' : isReturning ? 'Done' : 'Take me in'}
+                {saving ? 'One moment…' : isReturning ? 'Done' : 'Continue'}
+                {!isReturning && <ChevronRight className="ml-0.5 h-4 w-4" />}
               </Button>
             ) : (
               <Button

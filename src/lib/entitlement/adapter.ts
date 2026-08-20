@@ -8,15 +8,19 @@
  * this file and its implementation change.
  */
 
-import type { BillingResult, PlanId } from './types';
+import type { BillingPlanDetails, BillingResult, PlanId } from './types';
 
 export interface BillingAdapter {
   /** Is a real billing service reachable on this device? */
   available(): Promise<boolean>;
   /** Ask what the store knows. MUST resolve `{ok:false}` rather than throw. */
   query(): Promise<BillingResult>;
+  /** Eligible plans and localized prices currently returned by Google Play. */
+  plans(): Promise<BillingPlanDetails[]>;
   /** Launch the purchase flow for a plan. */
   purchase(plan: PlanId): Promise<BillingResult>;
+  /** Ask Play to restore purchases made on this Google account. */
+  restore(): Promise<BillingResult>;
   /** Deep-link to Play's subscription management. */
   openManage(): Promise<void>;
 }
@@ -34,10 +38,20 @@ export const stubBillingAdapter: BillingAdapter = {
     return false;
   },
   async query() {
-    return { ok: false, reason: 'No billing service on this platform.' };
+    return { ok: false, reason: 'No billing service on this platform.', kind: 'unavailable' };
+  },
+  async plans() {
+    return [];
   },
   async purchase() {
-    return { ok: false, reason: 'Purchases are only available in the Android app.' };
+    return {
+      ok: false,
+      reason: 'Purchases are only available in the Android app.',
+      kind: 'unavailable',
+    };
+  },
+  async restore() {
+    return { ok: false, reason: 'No Play purchases on this platform.', kind: 'unavailable' };
   },
   async openManage() {
     /* no-op */

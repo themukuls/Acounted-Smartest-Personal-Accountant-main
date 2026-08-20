@@ -23,6 +23,8 @@ import {
   dayKey,
   OFFLINE_GRACE_DAYS,
   NEGATIVE_DAYS_TO_LAPSE,
+  LOCAL_TRIAL_DAYS,
+  beginLocalTrial,
 } from './state';
 import { FRESH_INSTALL, type EntitlementSnapshot, type EntitlementStatus } from './types';
 
@@ -144,9 +146,9 @@ describe('downgrading to lapsed', () => {
 // ─── Offline expiry and the grace window ─────────────────────────────────────
 
 describe('offline behaviour around expiry', () => {
-  test('a trialing snapshot survives the full 14 days offline', () => {
-    const s = snap({ status: 'trialing', plan: 'annual', expiresAt: NOW + 14 * DAY });
-    for (let d = 0; d <= 14; d++) {
+  test('a Play trialing snapshot survives its full 7 days offline', () => {
+    const s = snap({ status: 'trialing', trialSource: 'play', plan: 'annual', expiresAt: NOW + 7 * DAY });
+    for (let d = 0; d <= 7; d++) {
       expect(effectiveStatus(s, NOW + d * DAY)).toBe('trialing');
       expect(capabilitiesOf(s, NOW + d * DAY).canWrite).toBe(true);
     }
@@ -155,14 +157,14 @@ describe('offline behaviour around expiry', () => {
   test('past expiry it grants grace, not a lockout', () => {
     // A trial converting to paid (or an annual renewing) while offline is the
     // exact case this protects: Google took the money, we just can't see it.
-    const s = snap({ status: 'trialing', plan: 'annual', expiresAt: NOW });
+    const s = snap({ status: 'trialing', trialSource: 'play', plan: 'annual', expiresAt: NOW });
     expect(effectiveStatus(s, NOW + DAY)).toBe('grace');
     expect(capabilitiesOf(s, NOW + DAY).canWrite).toBe(true);
     expect(capabilitiesOf(s, NOW + OFFLINE_GRACE_DAYS * DAY).canWrite).toBe(true);
   });
 
   test('grace eventually ends', () => {
-    const s = snap({ status: 'trialing', plan: 'annual', expiresAt: NOW });
+    const s = snap({ status: 'trialing', trialSource: 'play', plan: 'annual', expiresAt: NOW });
     expect(effectiveStatus(s, NOW + (OFFLINE_GRACE_DAYS + 1) * DAY)).toBe('lapsed');
   });
 
@@ -183,12 +185,13 @@ describe('a successful purchase', () => {
   test('a trial purchase lands as trialing with an expiry', () => {
     const s = reconcile(
       snap({ status: 'none' }),
-      { ok: true, entitled: true, plan: 'annual', trialing: true, expiresAt: NOW + 14 * DAY },
+      { ok: true, entitled: true, plan: 'annual', trialing: true, expiresAt: NOW + 7 * DAY },
       NOW,
     );
     expect(s.status).toBe('trialing');
     expect(s.plan).toBe('annual');
-    expect(trialDaysRemaining(s, NOW)).toBe(14);
+    expect(trialDaysRemaining(s, NOW)).toBe(7);
+    expect(s.trialSource).toBe('play');
     expect(capabilitiesOf(s, NOW).canUseTax).toBe(true);
   });
 
@@ -208,6 +211,37 @@ describe('a successful purchase', () => {
     const copy = JSON.parse(JSON.stringify(before));
     reconcile(before, { ok: true, entitled: false }, NOW);
     expect(before).toEqual(copy);
+  });
+});
+
+describe('one-time local trial', () => {
+  test('starts for seven days without a billing plan', () => {
+    const s = beginLocalTrial(FRESH_INSTALL, NOW);
+    expect(s).toMatchObject({
+      status: 'trialing',
+      plan: null,
+      trialSource: 'local',
+      localTrialStartedAt: NOW,
+      localTrialUsed: true,
+      expiresAt: NOW + LOCAL_TRIAL_DAYS * DAY,
+    });
+  });
+
+  test('ends without Play offline grace', () => {
+    const s = beginLocalTrial(FRESH_INSTALL, NOW);
+    expect(effectiveStatus(s, NOW + LOCAL_TRIAL_DAYS * DAY)).toBe('trialing');
+    expect(effectiveStatus(s, NOW + LOCAL_TRIAL_DAYS * DAY + 1)).toBe('lapsed');
+  });
+
+  test('a negative Play lookup does not shorten it', () => {
+    const s = beginLocalTrial(FRESH_INSTALL, NOW);
+    expect(reconcile(s, { ok: true, entitled: false }, NOW + DAY)).toEqual(s);
+  });
+
+  test('cannot be started twice', () => {
+    const first = beginLocalTrial(FRESH_INSTALL, NOW);
+    const expired = { ...first, status: 'lapsed' as const, expiresAt: null };
+    expect(beginLocalTrial(expired, NOW + 20 * DAY)).toBe(expired);
   });
 });
 

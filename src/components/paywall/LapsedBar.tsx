@@ -21,14 +21,18 @@ import { useEntitlement } from '@/hooks/useEntitlement';
 import { SUBSCRIBE_ROUTE } from '@/lib/paywall/gate';
 
 export const LapsedBar = () => {
-  const { status } = useEntitlement();
+  const { status, snapshot } = useEntitlement();
   if (status !== 'lapsed') return null;
+
+  const localTrialEnded = snapshot.trialSource === 'local';
 
   return (
     <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2.5">
       <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
       <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-muted-foreground">
-        <span className="font-semibold text-foreground">Your subscription ended.</span>{' '}
+        <span className="font-semibold text-foreground">
+          {localTrialEnded ? 'Your free trial ended.' : 'Your subscription ended.'}
+        </span>{' '}
         Everything you have logged is still here to read and export — adding entries, the tax
         copilot, the assistant and search are paused until you resubscribe.
       </p>
@@ -36,7 +40,7 @@ export const LapsedBar = () => {
         to={SUBSCRIBE_ROUTE}
         className="pointer-events-auto mt-0.5 shrink-0 text-[11px] font-bold text-primary"
       >
-        Resubscribe
+        {localTrialEnded ? 'Subscribe' : 'Resubscribe'}
       </Link>
     </div>
   );

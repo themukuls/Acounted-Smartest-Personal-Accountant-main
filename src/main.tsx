@@ -60,6 +60,22 @@ if (isNativeApp) enableCopyProtection();
 // cost the user the app — log it and render anyway; the migration is retried on
 // the next launch because its flag is only set on a verified success.
 async function bootstrap() {
+  // Install the real billing implementation before any entitlement hook can
+  // query the adapter. Web/PWA builds deliberately keep the no-store stub.
+  if (isNativeApp) {
+    try {
+      const [{ setBillingAdapter }, { playAdapter }] = await Promise.all([
+        import('./lib/entitlement/adapter'),
+        import('./lib/entitlement/playAdapter'),
+      ]);
+      setBillingAdapter(playAdapter);
+    } catch (error) {
+      // Billing being unavailable must never stop an offline-first finance app
+      // from opening. The paywall will offer the no-card local trial instead.
+      console.error('[App] Google Play Billing unavailable; using safe fallback', error);
+    }
+  }
+
   try {
     await migrateFromIndexedDBIfNeeded();
   } catch (error) {

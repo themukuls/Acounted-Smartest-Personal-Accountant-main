@@ -36,7 +36,7 @@
  */
 
 import type { BillingAdapter } from './adapter';
-import type { BillingResult, PlanId } from './types';
+import type { BillingPlanDetails, BillingResult, PlanId } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Product identifiers — these MUST match Play Console exactly.
@@ -58,14 +58,14 @@ export const BASE_PLAN_IDS: Readonly<Record<PlanId, string>> = {
 };
 
 /**
- * The 14-day free-trial offer, attached to the ANNUAL base plan only.
+ * The 7-day free-trial offer, attached to the ANNUAL base plan only.
  *
  * Google enforces one free trial per Google account per subscription, forever.
  * Play simply does not return this offer to an ineligible account, so
  * `pickOffer()` falls through to the plain base plan and the user is charged
  * immediately — no special-casing needed here.
  */
-export const ANNUAL_TRIAL_OFFER_ID = 'annual-14day-trial';
+export const ANNUAL_TRIAL_OFFER_ID = 'annual-7day-trial';
 
 /**
  * Offer identifiers as `cordova-plugin-purchase` composes them for Google Play:
@@ -79,7 +79,7 @@ export const OFFER_IDS = {
 } as const;
 
 /** Length of the free trial in Play Console. Used only to sanity-check inference. */
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 7;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Timeouts. A hung Play Store must degrade to "don't know", not to a hung app.
@@ -105,8 +105,8 @@ export const billingTimeouts = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Trial (14d) plus slack, still comfortably under a monthly period. */
-const TRIAL_MAX_DAYS = 20;
+/** Trial (7d) plus slack, still comfortably under a monthly period. */
+const TRIAL_MAX_DAYS = 12;
 /** Anything billed for longer than two months is the annual plan. */
 const ANNUAL_MIN_DAYS = 60;
 
@@ -126,7 +126,9 @@ const ERR_PAYMENT_CANCELLED = 6777006;
 type MaybeDate = Date | number | string | undefined | null;
 
 interface CdvPricingPhase {
+  price?: string;
   priceMicros?: number;
+  currency?: string;
   billingPeriod?: string;
   /** 'PayAsYouGo' | 'UpFront' | 'FreeTrial' */
   paymentMode?: string;
@@ -279,9 +281,6 @@ export function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<
       settled = true;
       resolve(fallback);
     }, ms);
-    // Don't hold the process open in Node/bun for a timer nobody is waiting on.
-    (timer as unknown as { unref?: () => void }).unref?.();
-
     p.then(
       (v) => {
         if (settled) return;
@@ -299,7 +298,10 @@ export function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<
   });
 }
 
-const UNKNOWN = (reason: string): BillingResult => ({ ok: false, reason });
+const UNKNOWN = (
+  reason: string,
+  kind: 'cancelled' | 'pending' | 'unavailable' | 'error' = 'error',
+): BillingResult => ({ ok: false, reason, kind });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Initialisation — once per app run, retried after a failure.
@@ -329,7 +331,7 @@ function ensureInit(): Promise<BillingResult | null> {
     const cdv = getCdv();
     const store = getStore(cdv);
     if (!cdv || !store) {
-      return UNKNOWN('Play Billing plugin is not present on this platform.');
+      return UNKNOWN('Play Billing plugin is not present on this platform.', 'unavailable');
     }
 
     store.register([
@@ -389,10 +391,12 @@ function offerParts(offerId: string): { productId: string; basePlanId?: string; 
   return { productId, basePlanId, offerId: offer };
 }
 
+function isFreeTrialPhase(phase: CdvPricingPhase): boolean {
+  return phase.paymentMode === 'FreeTrial' || phase.priceMicros === 0;
+}
+
 function isFreeTrialOffer(offer: CdvOffer): boolean {
-  return (offer.pricingPhases ?? []).some(
-    (p) => p.paymentMode === 'FreeTrial' || p.priceMicros === 0,
-  );
+  return (offer.pricingPhases ?? []).some(isFreeTrialPhase);
 }
 
 /**
@@ -436,7 +440,7 @@ function findVerifiedPurchase(store: CdvStore): CdvVerifiedPurchase | undefined 
  * but NOT the base plan, so this is inference, in descending order of trust:
  *
  *  1. A validated receipt's `discountId` (only present with a receipt validator).
- *  2. The trial: the 14-day trial offer exists ONLY on the annual base plan, so
+ *  2. The trial: the 7-day trial offer exists ONLY on the annual base plan, so
  *     a trialing subscription is annual by construction.
  *  3. Period length: > 60 days billed ⇒ annual.
  *  4. The plan ordered in this session.
@@ -465,7 +469,7 @@ function inferPlan(
  * Is this the free-trial period? Same problem as the plan: Play's local
  * `Purchase` doesn't say. Trust a validated receipt when there is one, then
  * fall back to "this is the FIRST period and it is far too short to be a paid
- * one" — a 14-day window against a 1-month floor for any paid plan.
+ * one" — a 7-day window against a 1-month floor for any paid plan.
  */
 function inferTrialing(
   verified: CdvVerifiedPurchase | undefined,
@@ -520,7 +524,7 @@ export function interpret(store: CdvStore, now: number): BillingResult {
   // Payment in flight (slow card, "pending" purchase). Play has not decided,
   // so neither do we.
   if (tx.isPending === true || tx.state === 'pending') {
-    return UNKNOWN('A Play purchase is pending payment; entitlement is undecided.');
+    return UNKNOWN('A Play purchase is pending payment; entitlement is undecided.', 'pending');
   }
 
   // Purchase started but not completed — indeterminate, not a negative.
@@ -579,6 +583,60 @@ async function queryInner(now: number): Promise<BillingResult> {
   return interpret(store, now);
 }
 
+function trialDaysFromPhase(phase: CdvPricingPhase | undefined): number {
+  const match = phase?.billingPeriod?.match(/^P(\d+)D$/i);
+  return match ? Number(match[1]) : TRIAL_DAYS;
+}
+
+function phasePrice(phase: CdvPricingPhase | undefined): string | null {
+  if (!phase) return null;
+  if (phase.price) return phase.price;
+  if (typeof phase.priceMicros !== 'number') return null;
+  const value = phase.priceMicros / 1_000_000;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: phase.currency ?? 'INR',
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${value}`;
+  }
+}
+
+function billingPeriodLabel(period: string | undefined, plan: PlanId): string {
+  if (period === 'P1Y') return 'per year';
+  if (period === 'P1M') return 'per month';
+  return plan === 'annual' ? 'per year' : 'per month';
+}
+
+/** Eligible offers with price strings supplied by Google Play. */
+async function plansInner(): Promise<BillingPlanDetails[]> {
+  const init = await ensureInit();
+  if (init) return [];
+  const store = getStore(getCdv());
+  if (!store) return [];
+  if (typeof store.update === 'function') await store.update();
+  const product = store.get(PLAY_SUBSCRIPTION_ID, GOOGLE_PLAY);
+  if (!product) return [];
+
+  return (Object.keys(BASE_PLAN_IDS) as PlanId[]).flatMap((plan) => {
+    const offer = pickOffer(product, plan);
+    if (!offer) return [];
+    const trial = offer.pricingPhases?.find(isFreeTrialPhase);
+    const paid = [...(offer.pricingPhases ?? [])].reverse().find((phase) => !isFreeTrialPhase(phase));
+    const priceLabel = phasePrice(paid);
+    if (!priceLabel) return [];
+    return [{
+      plan,
+      priceLabel,
+      billingPeriod: billingPeriodLabel(paid?.billingPeriod, plan),
+      trialEligible: Boolean(trial),
+      trialDays: trial ? trialDaysFromPhase(trial) : 0,
+    }];
+  });
+}
+
 export const playAdapter: BillingAdapter = {
   /**
    * The Cordova plugin's JS is only injected inside the native WebView, so the
@@ -587,6 +645,14 @@ export const playAdapter: BillingAdapter = {
    */
   async available(): Promise<boolean> {
     return getStore(getCdv()) !== null;
+  },
+
+  async plans(): Promise<BillingPlanDetails[]> {
+    try {
+      return await withTimeout(plansInner(), billingTimeouts.query, []);
+    } catch {
+      return [];
+    }
   },
 
   /**
@@ -632,7 +698,7 @@ export const playAdapter: BillingAdapter = {
 
           const cdv = getCdv();
           const store = getStore(cdv);
-          if (!cdv || !store) return UNKNOWN('Play Billing plugin is not available.');
+          if (!cdv || !store) return UNKNOWN('Play Billing plugin is not available.', 'unavailable');
 
           const product = store.get(PLAY_SUBSCRIPTION_ID, platformId(cdv));
           const offer = pickOffer(product, plan);
@@ -653,6 +719,7 @@ export const playAdapter: BillingAdapter = {
               cancelled
                 ? 'Purchase cancelled.'
                 : `Play could not complete the purchase: ${err.message ?? 'unknown error'}`,
+              cancelled ? 'cancelled' : 'error',
             );
           }
 
@@ -665,6 +732,24 @@ export const playAdapter: BillingAdapter = {
       );
     } catch (err) {
       return UNKNOWN(`Play purchase failed: ${describeError(err)}`);
+    }
+  },
+
+  async restore(): Promise<BillingResult> {
+    try {
+      const init = await ensureInit();
+      if (init) return init;
+      const store = getStore(getCdv());
+      if (!store) return UNKNOWN('Play Billing plugin is not available.', 'unavailable');
+      if (typeof store.restorePurchases === 'function') {
+        const error = await store.restorePurchases();
+        if (isCdvError(error)) {
+          return UNKNOWN(`Play could not restore purchases: ${error.message ?? 'unknown error'}`);
+        }
+      }
+      return await queryInner(Date.now());
+    } catch (err) {
+      return UNKNOWN(`Play purchase restore failed: ${describeError(err)}`);
     }
   },
 

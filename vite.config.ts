@@ -50,9 +50,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     manifest: true,
     rollupOptions: {
-      // Exclude Vercel serverless functions from the Vite/Rollup frontend build.
-      // The api/ folder is handled directly by Vercel — never by Vite.
-      external: (id) => id.includes('/api/') || id.startsWith('api/'),
       output: {
         footer: `/* Watermark: Acounted by themukuls - Build ID: ${new Date().toISOString()} */`,
       },

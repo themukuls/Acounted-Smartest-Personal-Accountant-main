@@ -1,354 +1,260 @@
 "use client";
 
-/**
- * PaywallScreen — the offer.
- *
- * The prop contract is FINAL and is what OnboardingModal imports. Do not change
- * the props without updating every caller.
- *
- * ── Why the price, the renewal period and the cancellation route are all
- *    above the fold, in body text, before anything is tappable ───────────────
- * Google Play's subscription policy requires that a user can see what they will
- * be charged, how often it recurs, and how to cancel BEFORE the purchase flow
- * starts. Burying any of the three in fine print, or behind a "details" toggle,
- * is one of the most common reasons a subscription app is rejected. So the
- * three facts are plain sentences at the same size as everything else, and the
- * selected plan restates them directly above the button that starts billing.
- *
- * ── Why the annual saving is a rupee figure and not a percentage badge ───────
- * "Save 33%!" is a number the reader has to trust. "₹99.00 a month is ₹1,188.00
- * over a year — the annual plan costs ₹389.00 less" is a number they can check.
- * Both plans are shown at full price with no default-selected trap.
- *
- * ── Failure is a message, never a dead button ───────────────────────────────
- * Three genuinely different things can go wrong and they must not be conflated:
- * the user backed out (nothing charged, no apology needed), the store could not
- * be reached at all (their fault-free, retryable), or Play returned a real "no"
- * (a payment method problem they have to fix in Play, not here).
- */
-
-import { useState } from 'react';
-import { useEntitlement } from '@/hooks/useEntitlement';
-import { formatFullINR } from '@/lib/currency';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
 import {
+  AlertCircle,
   Check,
   ChevronLeft,
+  FileDown,
   Loader2,
   Lock,
-  AlertCircle,
-  FileDown,
   ShieldCheck,
 } from 'lucide-react';
-import type { BillingResult, PlanId } from '@/lib/entitlement/types';
+import { Button } from '@/components/ui/button';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { getBillingAdapter } from '@/lib/entitlement/adapter';
+import { LOCAL_TRIAL_DAYS } from '@/lib/entitlement/state';
+import type { BillingPlanDetails, BillingResult, PlanId } from '@/lib/entitlement/types';
+import { cn } from '@/lib/utils';
 
 export interface PaywallScreenProps {
-  /** Fires once billing has confirmed an entitlement. */
   onSubscribed: (plan: PlanId) => void;
-  /**
-   * Present only where backing out is allowed — i.e. a lapsed user who reached
-   * this from inside the app and must still be able to read and export their
-   * own records. Undefined during first-run onboarding.
-   */
+  onLocalTrialStarted?: () => void;
   onDismiss?: () => void;
-  /** Copy shifts between "start your trial" and "come back". */
   variant?: 'onboarding' | 'lapsed';
+  embedded?: boolean;
 }
-
-/** Mirrors the base plans in Play Console. Changing these changes nothing in
- *  Play — the store is the source of truth for what is actually charged. */
-const ANNUAL_PRICE = 799;
-const MONTHLY_PRICE = 99;
-const TRIAL_DAYS = 14;
-
-/** The comparison, computed rather than asserted, so it can't drift. */
-const MONTHLY_OVER_A_YEAR = MONTHLY_PRICE * 12; // ₹1,188
-const ANNUAL_SAVING = MONTHLY_OVER_A_YEAR - ANNUAL_PRICE; // ₹389
-
-interface PlanCopy {
-  id: PlanId;
-  name: string;
-  price: number;
-  /** Singular, as it appears after the slash. */
-  per: string;
-  /** The renewal sentence Play requires, in full. */
-  renewal: string;
-}
-
-const PLANS: PlanCopy[] = [
-  {
-    id: 'annual',
-    name: 'Yearly',
-    price: ANNUAL_PRICE,
-    per: 'year',
-    renewal: `Renews automatically every 12 months at ${formatFullINR(ANNUAL_PRICE)} until you cancel.`,
-  },
-  {
-    id: 'monthly',
-    name: 'Monthly',
-    price: MONTHLY_PRICE,
-    per: 'month',
-    renewal: `Renews automatically every month at ${formatFullINR(MONTHLY_PRICE)} until you cancel.`,
-  },
-];
 
 const INCLUDED = [
-  'Log income and expenses, and edit them later',
-  'The tax copilot, regime comparison and ITR draft',
-  'Voice quick-add',
-  'Search and automatic subscription detection',
+  'Log and edit income and expenses',
+  'Tax copilot, regime comparison and ITR draft',
+  'Voice quick-add, search and subscription detection',
+  'Read and export your records even after access ends',
 ];
 
-type Failure = { tone: 'neutral' | 'warn'; title: string; detail: string };
+type Notice = { tone: 'neutral' | 'warn'; title: string; detail: string };
 
-/** Turn a BillingResult into something a person can act on. */
-function failureFor(result: BillingResult): Failure {
-  // `in` rather than a `!result.ok` discriminant check: this project compiles
-  // with strictNullChecks off, which weakens narrowing on the boolean tag.
-  if ('reason' in result) {
-    return {
-      tone: 'warn',
-      title: 'Couldn’t reach the Play Store',
-      detail: `${result.reason} Nothing has been charged. Check your connection and try again.`,
-    };
+function noticeFor(result: BillingResult): Notice {
+  if (result.kind === 'cancelled') {
+      return {
+        tone: 'neutral',
+        title: 'Purchase cancelled',
+        detail: 'Nothing was charged. You can subscribe or start the no-card trial whenever you are ready.',
+      };
   }
-  // ok, but not entitled: the flow ran and ended without a subscription. By far
-  // the most common cause is the user backing out, and treating that as an
-  // error would be both wrong and rude.
+  if (result.kind === 'pending') {
+      return {
+        tone: 'neutral',
+        title: 'Payment is pending',
+        detail: 'Google Play is still processing it. Access will unlock when Play confirms the payment.',
+      };
+  }
+
   return {
-    tone: 'neutral',
-    title: 'Nothing was charged',
-    detail:
-      'The purchase didn’t go through — you may have cancelled it, or Play may need a payment method added to your account. You can try again whenever you like.',
+    tone: 'warn',
+    title: result.kind === 'unavailable' ? 'Google Play is unavailable' : 'Purchase not completed',
+    detail: `${'reason' in result ? result.reason : 'Google Play did not confirm access.'} Nothing was charged.`,
   };
 }
 
 export const PaywallScreen = ({
   onSubscribed,
+  onLocalTrialStarted,
   onDismiss,
   variant = 'onboarding',
+  embedded = false,
 }: PaywallScreenProps) => {
-  const { purchase } = useEntitlement();
+  const { purchase, restore, startLocalTrial, snapshot } = useEntitlement();
+  const [plans, setPlans] = useState<BillingPlanDetails[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [selected, setSelected] = useState<PlanId>('annual');
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Failure | null>(null);
+  const [busy, setBusy] = useState<'purchase' | 'restore' | 'trial' | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
-  const lapsed = variant === 'lapsed';
-  const plan = PLANS.find((p) => p.id === selected)!;
-
-  const handleSubscribe = async () => {
-    if (busy) return;
-    setBusy(true);
-    setFailure(null);
-    const result = await purchase(selected);
-    setBusy(false);
-
-    if (result.ok && result.entitled) {
-      onSubscribed(selected);
-      return;
+  const loadCatalog = useCallback(async () => {
+    setCatalogLoading(true);
+    try {
+      const next = await getBillingAdapter().plans();
+      setPlans(next);
+      setSelected((current) =>
+        next.some((item) => item.plan === current) ? current : (next[0]?.plan ?? 'annual'),
+      );
+    } catch {
+      setPlans([]);
+    } finally {
+      setCatalogLoading(false);
     }
-    setFailure(failureFor(result));
+  }, []);
+
+  useEffect(() => {
+    void loadCatalog();
+  }, [loadCatalog]);
+
+  const plan = useMemo(() => plans.find((item) => item.plan === selected), [plans, selected]);
+  const lapsed = variant === 'lapsed';
+  const localTrialAvailable = !snapshot.localTrialUsed && snapshot.localTrialStartedAt === null;
+
+  const handlePurchase = async () => {
+    if (!plan || busy) return;
+    setBusy('purchase');
+    setNotice(null);
+    const result = await purchase(plan.plan);
+    setBusy(null);
+    if (result.ok && result.entitled) onSubscribed(plan.plan);
+    else setNotice(noticeFor(result));
   };
+
+  const handleRestore = async () => {
+    if (busy) return;
+    setBusy('restore');
+    setNotice(null);
+    const result = await restore();
+    setBusy(null);
+    if (result.ok && result.entitled && result.plan) onSubscribed(result.plan);
+    else {
+      setNotice(
+        result.ok
+          ? { tone: 'neutral', title: 'No active purchase found', detail: 'Use the Google account that originally subscribed, or choose a plan below.' }
+          : noticeFor(result),
+      );
+    }
+  };
+
+  const handleLocalTrial = async () => {
+    if (busy) return;
+    setBusy('trial');
+    setNotice(null);
+    const started = await startLocalTrial();
+    setBusy(null);
+    if (started) onLocalTrialStarted?.();
+    else setNotice({ tone: 'neutral', title: 'Trial already used', detail: 'Choose a Google Play plan to continue using Pro actions.' });
+  };
+
+  const renewalCopy = plan
+    ? plan.trialEligible
+      ? `${plan.trialDays} days free through Google Play, then ${plan.priceLabel} ${plan.billingPeriod} until cancelled.`
+      : `${plan.priceLabel} ${plan.billingPeriod}, charged by Google Play and renewed automatically until cancelled.`
+    : 'Google Play will show the exact price and terms before you confirm.';
 
   return (
     <div
-      className="min-h-screen w-full overflow-y-auto bg-background"
-      style={{
+      className={cn('w-full overflow-y-auto bg-background', !embedded && 'min-h-screen')}
+      style={embedded ? undefined : {
         paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
         paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
       }}
     >
-      <div className="mx-auto w-full max-w-md space-y-5 px-5">
-
-        {/* ── Back out ───────────────────────────────────────────────────
-            Only rendered when dismissal is legitimate. A lapsed user MUST be
-            able to get to their own records from here, so this is not a
-            decorative X — it is the thing that keeps the screen from being a
-            hostage note. */}
+      <div className={cn('mx-auto w-full max-w-md space-y-5', !embedded && 'px-5')}>
         {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="pointer-events-auto -ml-1 flex items-center gap-1 rounded-xl py-1 pr-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Back to my records
+          <button type="button" onClick={onDismiss} className="-ml-1 flex items-center gap-1 rounded-xl py-1 pr-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="h-4 w-4" /> Back to my records
           </button>
         )}
 
-        {/* ── Headline ───────────────────────────────────────────────── */}
-        <div className="space-y-2 pt-1">
+        <div className="space-y-2">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
             <ShieldCheck className="h-5 w-5 text-primary" />
           </div>
           <h1 className="text-2xl font-black leading-tight tracking-tight text-foreground">
-            {lapsed ? 'Come back any time' : `${TRIAL_DAYS} days free, then choose a plan`}
+            {lapsed ? 'Continue with Acounted Pro' : 'Choose how you want to start'}
           </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {lapsed
-              ? 'Your subscription has ended, so adding entries, the tax copilot, the assistant and search are paused. Your records are untouched — pick a plan below and everything switches back on.'
-              : `Try everything for ${TRIAL_DAYS} days. Google asks for a payment method up front; nothing is charged until the ${TRIAL_DAYS} days are up, and cancelling before then costs nothing.`}
+              ? snapshot.trialSource === 'local'
+                ? 'Your free trial ended. Your records remain available; subscribe to unlock adding, search, voice and the tax copilot.'
+                : 'Your paid access ended. Your records remain available; choose a plan to unlock Pro actions again.'
+              : `Subscribe through Google Play now, or continue with a one-time ${LOCAL_TRIAL_DAYS}-day trial without adding a payment method.`}
           </p>
         </div>
 
-        {/* ── Plans ──────────────────────────────────────────────────────
-            Both prices visible at once, at the same weight. The yearly card
-            is pre-selected but the monthly one is a full, equal option. */}
         <div className="space-y-2.5">
-          {PLANS.map((p) => {
-            const isSelected = p.id === selected;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelected(p.id)}
-                aria-pressed={isSelected}
-                className={cn(
-                  'pointer-events-auto flex w-full items-start gap-3 rounded-2xl border-2 p-4 text-left transition-all',
-                  isSelected
-                    ? 'border-primary bg-primary/5 shadow-sm'
-                    : 'border-border/60 bg-background/60 hover:border-primary/40',
-                )}
-              >
-                <div
-                  className={cn(
-                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
-                    isSelected ? 'border-primary bg-primary' : 'border-border',
-                  )}
+          {catalogLoading ? (
+            <div className="flex items-center justify-center rounded-2xl border border-border/60 p-6 text-xs text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading Google Play plans…
+            </div>
+          ) : plans.length > 0 ? (
+            plans.map((item) => {
+              const active = item.plan === selected;
+              return (
+                <button
+                  key={item.plan}
+                  type="button"
+                  onClick={() => setSelected(item.plan)}
+                  aria-pressed={active}
+                  className={cn('flex w-full items-start gap-3 rounded-2xl border-2 p-4 text-left transition-all', active ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/40')}
                 >
-                  {isSelected && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-sm font-bold text-foreground">{p.name}</p>
-                    <p className="text-base font-black tracking-tight text-foreground">
-                      {formatFullINR(p.price)}
-                      <span className="text-xs font-semibold text-muted-foreground"> / {p.per}</span>
-                    </p>
-                  </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                    {p.renewal}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-
-          {/* The saving, as arithmetic anyone can check. */}
-          <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
-            {formatFullINR(MONTHLY_PRICE)} a month comes to {formatFullINR(MONTHLY_OVER_A_YEAR)}{' '}
-            over a year. The yearly plan is {formatFullINR(ANNUAL_SAVING)} less.
-          </p>
+                  <span className={cn('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2', active ? 'border-primary bg-primary' : 'border-border')}>
+                    {active && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-bold text-foreground">{item.plan === 'annual' ? 'Yearly' : 'Monthly'}</span>
+                      <span className="text-base font-black text-foreground">{item.priceLabel}</span>
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
+                      {item.trialEligible ? `${item.trialDays}-day Play trial, then ` : ''}{item.priceLabel} {item.billingPeriod}. Auto-renews until cancelled.
+                    </span>
+                  </span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 text-xs leading-relaxed text-muted-foreground">
+              Google Play plans are not available on this installation. Install the testing build from Google Play with an eligible tester account, then retry.
+              <button type="button" onClick={() => void loadCatalog()} className="ml-1 font-bold text-primary">Retry</button>
+            </div>
+          )}
         </div>
 
-        {/* ── What you get ───────────────────────────────────────────── */}
         <ul className="space-y-1.5">
           {INCLUDED.map((item) => (
-            <li key={item} className="flex items-start gap-2">
-              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={3} />
-              <span className="text-xs leading-relaxed text-foreground">{item}</span>
+            <li key={item} className="flex items-start gap-2 text-xs leading-relaxed text-foreground">
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={3} /> {item}
             </li>
           ))}
         </ul>
 
-        {/* ── The promise that outranks the offer ─────────────────────── */}
-        <div className="flex items-start gap-2.5 rounded-2xl border border-border/60 bg-muted/30 p-3">
-          <FileDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <p className="text-[11px] leading-relaxed text-foreground">
-            <span className="font-semibold">Reading and exporting are never locked.</span>{' '}
-            If you cancel, or a payment fails, or you simply stop paying, you keep
-            opening the app and reading every entry you have ever logged — and you
-            can take it all out as a file. That doesn’t expire.
-          </p>
-        </div>
-
-        {/* ── Failure ────────────────────────────────────────────────────
-            Sits directly above the button, so the retry is where the eye
-            already is. */}
-        {failure && (
-          <div
-            role="status"
-            className={cn(
-              'flex items-start gap-2.5 rounded-2xl border p-3',
-              failure.tone === 'warn'
-                ? 'border-amber-500/30 bg-amber-500/5'
-                : 'border-border/60 bg-muted/40',
-            )}
-          >
-            <AlertCircle
-              className={cn(
-                'mt-0.5 h-4 w-4 shrink-0',
-                failure.tone === 'warn' ? 'text-amber-600' : 'text-muted-foreground',
-              )}
-            />
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-foreground">{failure.title}</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                {failure.detail}
-              </p>
-            </div>
+        {notice && (
+          <div role="status" className={cn('flex items-start gap-2.5 rounded-2xl border p-3', notice.tone === 'warn' ? 'border-amber-500/30 bg-amber-500/5' : 'border-border/60 bg-muted/40')}>
+            <AlertCircle className={cn('mt-0.5 h-4 w-4 shrink-0', notice.tone === 'warn' ? 'text-amber-600' : 'text-muted-foreground')} />
+            <div><p className="text-xs font-semibold text-foreground">{notice.title}</p><p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{notice.detail}</p></div>
           </div>
         )}
 
-        {/* ── Commit ─────────────────────────────────────────────────────
-            Everything Play requires is restated here, immediately above the
-            control that starts billing — not only at the top of the page. */}
         <div className="space-y-2.5">
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            {lapsed
-              ? `You’ll be charged ${formatFullINR(plan.price)} today, then ${formatFullINR(plan.price)} every ${plan.per} until you cancel.`
-              : `Free for ${TRIAL_DAYS} days. After that, ${formatFullINR(plan.price)} every ${plan.per} until you cancel.`}
-          </p>
-
-          <Button
-            onClick={() => void handleSubscribe()}
-            disabled={busy}
-            className="pointer-events-auto h-12 w-full rounded-2xl text-sm font-bold"
-          >
-            {busy ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Opening Google Play…
-              </>
-            ) : lapsed ? (
-              `Resubscribe — ${formatFullINR(plan.price)} / ${plan.per}`
-            ) : (
-              `Start my ${TRIAL_DAYS} free days`
-            )}
+          <p className="text-[11px] leading-relaxed text-muted-foreground">{renewalCopy}</p>
+          <Button onClick={() => void handlePurchase()} disabled={Boolean(busy) || !plan} className="h-12 w-full rounded-2xl text-sm font-bold">
+            {busy === 'purchase' ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Opening Google Play…</> : plan?.trialEligible ? `Start ${plan.trialDays}-day Play trial` : plan ? `Subscribe — ${plan.priceLabel}` : 'Google Play plan unavailable'}
           </Button>
 
-          {failure && (
-            <p className="text-center text-[11px] text-muted-foreground">
-              Nothing has been charged.
-            </p>
+          {localTrialAvailable && !lapsed && (
+            <button type="button" disabled={Boolean(busy)} onClick={() => void handleLocalTrial()} className="w-full rounded-xl border border-border/70 py-3 text-xs font-bold text-foreground disabled:opacity-50">
+              {busy === 'trial' ? 'Starting trial…' : `Not ready to pay? Try ${LOCAL_TRIAL_DAYS} days without a payment method`}
+            </button>
           )}
 
-          {/* How to cancel — required before the purchase flow, so it is here
-              and not on a settings screen the user hasn't reached yet. */}
+          <button type="button" disabled={Boolean(busy)} onClick={() => void handleRestore()} className="w-full py-1 text-center text-xs font-semibold text-primary disabled:opacity-50">
+            {busy === 'restore' ? 'Checking Google Play…' : 'Restore an existing purchase'}
+          </button>
+
           <div className="flex items-start gap-2 pt-1">
             <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Billing is handled by Google Play. To cancel, open the Play Store →
-              your profile picture → <span className="text-foreground">Payments &amp; subscriptions</span>{' '}
-              → <span className="text-foreground">Subscriptions</span> → Acounted →{' '}
-              <span className="text-foreground">Cancel subscription</span>. Cancel at least 24 hours
-              before the renewal date to avoid the next charge. You keep access until the period you
-              have paid for ends.
+              Google Play shows the final price and charge date before confirmation. Subscriptions renew automatically. Cancel in Play Store → profile → Payments &amp; subscriptions → Subscriptions → Acounted. Cancelling a Play trial keeps access until its displayed end date and prevents the first charge.
             </p>
+          </div>
+          {snapshot.trialSource === 'play' && snapshot.expiresAt && (
+            <p className="text-[11px] text-muted-foreground">Current Play access is scheduled through {format(new Date(snapshot.expiresAt), 'd MMMM yyyy')}.</p>
+          )}
+          <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-muted/30 p-3">
+            <FileDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="text-[11px] leading-relaxed text-foreground"><span className="font-semibold">Reading and exporting are never locked.</span> Your financial records remain on your phone if a trial or subscription ends.</p>
           </div>
         </div>
 
-        {/* ── Second way out ─────────────────────────────────────────────
-            Repeated at the bottom because a lapsed user who scrolled past the
-            top one should not have to scroll back up to reach their data. */}
         {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="pointer-events-auto w-full rounded-xl py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground"
-          >
+          <button type="button" onClick={onDismiss} className="w-full rounded-xl py-2 text-center text-xs font-semibold text-muted-foreground hover:text-foreground">
             Not now — take me to my records
           </button>
         )}

@@ -38,6 +38,16 @@ function parse(raw: string | null): EntitlementSnapshot | null {
       negativeDays: Array.isArray(v.negativeDays)
         ? v.negativeDays.filter((d): d is string => typeof d === 'string')
         : [],
+      // Older Play snapshots predate trialSource; a trial with a plan is Play.
+      trialSource:
+        v.trialSource === 'local' || v.trialSource === 'play'
+          ? v.trialSource
+          : v.status === 'trialing' && (v.plan === 'annual' || v.plan === 'monthly')
+            ? 'play'
+            : null,
+      localTrialStartedAt:
+        typeof v.localTrialStartedAt === 'number' ? v.localTrialStartedAt : null,
+      localTrialUsed: v.localTrialUsed === true,
     };
   } catch {
     return null;

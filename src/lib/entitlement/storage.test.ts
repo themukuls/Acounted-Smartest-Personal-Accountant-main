@@ -83,8 +83,10 @@ describe('load / save', () => {
 
   test('a saved snapshot round-trips', async () => {
     const s = {
+      ...FRESH_INSTALL,
       status: 'trialing' as const,
       plan: 'annual' as const,
+      trialSource: 'play' as const,
       expiresAt: 1_800_000_000_000,
       lastVerifiedAt: 1_700_000_000_000,
       negativeDays: ['2026-08-02'],

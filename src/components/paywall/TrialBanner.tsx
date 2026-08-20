@@ -21,15 +21,12 @@
 import { useState } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { CalendarClock, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { dayKey } from '@/lib/entitlement/state';
-import { formatFullINR } from '@/lib/currency';
+import { SUBSCRIBE_ROUTE } from '@/lib/paywall/gate';
 
 const DISMISS_KEY = 'vidhence_trial_banner_dismissed';
-
-/** Prices repeated here rather than imported, so the banner can be read alone. */
-const ANNUAL_PRICE = 799;
-const MONTHLY_PRICE = 99;
 
 function readDismissedDay(): string | null {
   try {
@@ -59,8 +56,7 @@ export const TrialBanner = () => {
 
   const end = new Date(expiresAt);
   const endsToday = isSameDay(end, new Date());
-  const price = snapshot.plan === 'monthly' ? MONTHLY_PRICE : ANNUAL_PRICE;
-  const per = snapshot.plan === 'monthly' ? 'month' : 'year';
+  const isLocalTrial = snapshot.trialSource === 'local';
 
   const dismiss = () => {
     writeDismissedDay(today);
@@ -76,9 +72,17 @@ export const TrialBanner = () => {
           {format(end, 'd MMMM')}
           {endsToday ? ' (today)' : ''}
         </span>
-        . Google Play then charges {formatFullINR(price)} for the first {per}. Cancel any time
-        before then in Play → Subscriptions and you won’t be charged.
+        .{' '}
+        {isLocalTrial
+          ? 'No payment method was added, so there is no automatic charge. Subscribe to keep Pro actions after this date.'
+          : 'It will renew at the price Google Play showed you. Cancel before this date in Play → Subscriptions to prevent the first charge.'}
       </p>
+      <Link
+        to={SUBSCRIBE_ROUTE}
+        className="pointer-events-auto mt-0.5 shrink-0 text-[11px] font-bold text-primary"
+      >
+        {isLocalTrial ? 'Subscribe' : 'Plans'}
+      </Link>
       <button
         type="button"
         onClick={dismiss}
