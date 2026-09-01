@@ -56,6 +56,7 @@ import {
 } from '@/integrations/indexeddb/services/onboardingService';
 
 import { PaywallScreen } from '@/components/paywall/PaywallScreen';
+import { BILLING_ENABLED } from '@/lib/entitlement/config';
 import { FounderNote } from './screens/FounderNote';
 import { WhatWeRefuse } from './screens/WhatWeRefuse';
 import { WhatYouGet } from './screens/WhatYouGet';
@@ -106,7 +107,9 @@ const SCREEN_COPY: Record<ScreenId, { title: string; lede?: string }> = {
  */
 const MOMENT_TITLE_WHEN_SKIPPED = "That's everything I'll ask";
 
-const FULL_FLOW: ScreenId[] = ['founder', 'refuse', 'get', 'income', 'moment', 'offer'];
+const FULL_FLOW: ScreenId[] = BILLING_ENABLED
+  ? ['founder', 'refuse', 'get', 'income', 'moment', 'offer']
+  : ['founder', 'refuse', 'get', 'income', 'moment'];
 const RETURNING_FLOW: ScreenId[] = ['income', 'moment'];
 
 export const OnboardingModal = ({
@@ -251,6 +254,7 @@ export const OnboardingModal = ({
   const showChrome = screen !== 'offer';
   /** Screens 5 and the paywall carry their own action buttons. */
   const showModalFooter = screen !== 'offer' && screen !== 'income';
+  const momentCompletesFlow = screen === 'moment' && index === flow.length - 1;
 
   const stepNumber = index + 1;
 
@@ -342,12 +346,12 @@ export const OnboardingModal = ({
           <div className="flex items-center justify-end border-t border-border/40 pt-4">
             {screen === 'moment' ? (
               <Button
-                onClick={isReturning ? handleFinish : goNext}
+                onClick={momentCompletesFlow ? handleFinish : goNext}
                 disabled={saving}
                 className="pointer-events-auto h-11 rounded-xl px-7 text-sm font-semibold"
               >
-                {saving ? 'One moment…' : isReturning ? 'Done' : 'Continue'}
-                {!isReturning && <ChevronRight className="ml-0.5 h-4 w-4" />}
+                {saving ? 'One moment…' : isReturning ? 'Done' : momentCompletesFlow ? 'Take me in' : 'Continue'}
+                {!momentCompletesFlow && <ChevronRight className="ml-0.5 h-4 w-4" />}
               </Button>
             ) : (
               <Button

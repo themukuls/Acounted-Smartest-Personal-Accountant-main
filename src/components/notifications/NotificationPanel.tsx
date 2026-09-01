@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Bell, Link as LinkIcon, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NudgeSettings } from './NudgeSettings';
+import { PaymentCaptureSettings } from './PaymentCaptureSettings';
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils';
@@ -94,14 +95,24 @@ export const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps
         </DialogHeader>
 
         <Tabs defaultValue="updates" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-3 grid grid-cols-2 shrink-0 pointer-events-auto">
+          <TabsList className="mx-4 mt-3 grid grid-cols-3 shrink-0 pointer-events-auto">
             <TabsTrigger value="updates" className="text-xs pointer-events-auto">
               Updates
             </TabsTrigger>
             <TabsTrigger value="reminders" className="text-xs pointer-events-auto">
               Reminders
             </TabsTrigger>
+            <TabsTrigger value="payments" className="text-xs pointer-events-auto">
+              Payments
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent
+            value="payments"
+            className="flex-1 overflow-y-auto px-4 py-3 mt-0 focus-visible:outline-none"
+          >
+            <PaymentCaptureSettings onClose={() => onOpenChange(false)} />
+          </TabsContent>
 
           {/* ── Reminders: the nudge engine's controls + live preview ── */}
           <TabsContent

@@ -7,6 +7,7 @@ import React from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PaywallScreen } from "@/components/paywall/PaywallScreen";
 import { useEntitlement } from "@/hooks/useEntitlement";
+import { BILLING_ENABLED } from "@/lib/entitlement/config";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { InstallPromptProvider } from "@/contexts/InstallPromptContext";
 import { BackupPromptProvider } from "@/contexts/BackupPromptContext";
@@ -178,7 +179,7 @@ function PaywallWall() {
   const { showPaywall, refresh } = useEntitlement();
   const { pathname } = useLocation();
 
-  if (!user) return null;
+  if (!BILLING_ENABLED || !user) return null;
   // First-run onboarding owns the payment decision. Showing this global wall
   // before that flow finishes would cover the value screens with a second
   // paywall and make the app look stuck.
@@ -205,6 +206,8 @@ function PaywallWall() {
  */
 function SubscribeRoute() {
   const navigate = useNavigate();
+
+  if (!BILLING_ENABLED) return <Navigate to="/expenses" replace />;
 
   const leave = () => {
     // Same history-idx trick as the Android back button: idx > 0 means there is

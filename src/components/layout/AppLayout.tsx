@@ -11,6 +11,7 @@ import { AssistantSettingsModal } from "@/components/assistant/AssistantSettings
 import { useNudgeEngine } from "@/hooks/useNudges";
 import { TrialBanner } from "@/components/paywall/TrialBanner";
 import { LapsedBar } from "@/components/paywall/LapsedBar";
+import { usePaymentCaptureNavigation } from "@/hooks/usePaymentCaptureNavigation";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -23,6 +24,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   // most one notification a day. No-ops entirely until the user switches
   // reminders on in the bell → Reminders tab, so this costs nothing by default.
   useNudgeEngine();
+  usePaymentCaptureNavigation();
   const [showNotificationPanel, setShowNotificationPanel] = useState(false); // NEW: State for notification panel
   const [showAssistant, setShowAssistant] = useState(false);
   const [showAssistantSettings, setShowAssistantSettings] = useState(false);

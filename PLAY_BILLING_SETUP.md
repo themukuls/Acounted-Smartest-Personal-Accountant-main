@@ -1,5 +1,10 @@
 # Google Play subscription setup for Acounted
 
+> **Currently paused:** `BILLING_ENABLED` is `false` in
+> `src/lib/entitlement/config.ts`. The app is fully unlocked and does not
+> initialise Google Play Billing while that switch is off. Complete the setup
+> below, change the switch to `true`, then rebuild and sync Android to enable it.
+
 The Android client is configured for one subscription product with two base plans:
 
 | Play Console field | Required value |

@@ -29,7 +29,9 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { isNative } from '@/lib/platform';
 import { getBillingAdapter } from '@/lib/entitlement/adapter';
+import { BILLING_ENABLED } from '@/lib/entitlement/config';
 import {
+  capabilitiesFor,
   capabilitiesOf,
   beginLocalTrial,
   effectiveStatus,
@@ -116,6 +118,9 @@ async function runRefresh(): Promise<void> {
   const stored = await loadEntitlement();
   emit({ snapshot: stored, hydrated: true });
 
+  // Preserve the snapshot for a future re-enable, but do not contact Play.
+  if (!BILLING_ENABLED) return;
+
   let result: BillingResult;
   try {
     result = await getBillingAdapter().query();
@@ -173,6 +178,8 @@ let resumeWired = false;
 function wireResume(): void {
   if (resumeWired) return;
   resumeWired = true;
+
+  if (!BILLING_ENABLED) return;
 
   if (isNative()) {
     // Coming back from the Play purchase flow, or from the background after a
@@ -239,6 +246,14 @@ export function useEntitlement(): UseEntitlement {
 
   const derived = useMemo(() => {
     const now = Date.now();
+    if (!BILLING_ENABLED) {
+      return {
+        status: 'active' as EntitlementStatus,
+        capabilities: capabilitiesFor('active'),
+        trialDaysLeft: 0,
+        showPaywall: false,
+      };
+    }
     return {
       status: effectiveStatus(snapshot, now),
       capabilities: capabilitiesOf(snapshot, now),
@@ -255,6 +270,9 @@ export function useEntitlement(): UseEntitlement {
   }, []);
 
   const purchase = useCallback(async (plan: PlanId): Promise<BillingResult> => {
+    if (!BILLING_ENABLED) {
+      return { ok: false, reason: 'Subscriptions are currently paused.', kind: 'unavailable' };
+    }
     let result: BillingResult;
     try {
       result = await getBillingAdapter().purchase(plan);
@@ -270,6 +288,7 @@ export function useEntitlement(): UseEntitlement {
   }, []);
 
   const startLocalTrial = useCallback(async (): Promise<boolean> => {
+    if (!BILLING_ENABLED) return false;
     const stored = await loadEntitlement();
     const next = beginLocalTrial(stored, Date.now());
     if (next === stored) return false;
@@ -279,6 +298,9 @@ export function useEntitlement(): UseEntitlement {
   }, []);
 
   const restore = useCallback(async (): Promise<BillingResult> => {
+    if (!BILLING_ENABLED) {
+      return { ok: false, reason: 'Subscriptions are currently paused.', kind: 'unavailable' };
+    }
     let result: BillingResult;
     try {
       result = await getBillingAdapter().restore();
@@ -294,6 +316,7 @@ export function useEntitlement(): UseEntitlement {
   }, []);
 
   const manage = useCallback(async (): Promise<void> => {
+    if (!BILLING_ENABLED) return;
     try {
       await getBillingAdapter().openManage();
     } catch {

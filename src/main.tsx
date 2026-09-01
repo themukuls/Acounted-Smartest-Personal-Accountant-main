@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { isNative } from './lib/platform'
+import { BILLING_ENABLED } from './lib/entitlement/config'
 import { migrateFromIndexedDBIfNeeded } from './integrations/storage/migrateFromIndexedDB'
 
 // ── Copy protection (native app only) ─────────────────────────────────────────
@@ -62,7 +63,7 @@ if (isNativeApp) enableCopyProtection();
 async function bootstrap() {
   // Install the real billing implementation before any entitlement hook can
   // query the adapter. Web/PWA builds deliberately keep the no-store stub.
-  if (isNativeApp) {
+  if (isNativeApp && BILLING_ENABLED) {
     try {
       const [{ setBillingAdapter }, { playAdapter }] = await Promise.all([
         import('./lib/entitlement/adapter'),

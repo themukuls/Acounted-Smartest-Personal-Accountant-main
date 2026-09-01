@@ -45,6 +45,14 @@ interface TransactionFormDialogProps {
   };
   weekLabel: string;
   formType?: 'income' | 'expense' | undefined;
+  detectedPayment?: {
+    amount: string;
+    merchant: string | null;
+    occurredAt: number;
+    appName: string;
+  };
+  onDetectedLater?: () => void;
+  onDetectedSkip?: () => void;
 }
 
 interface CategoryItem {
@@ -444,7 +452,8 @@ const CategoryPicker = ({
 // ─── Main dialog ───────────────────────────────────────────────────────────
 
 export const TransactionFormDialog = ({
-  isOpen, onClose, onSave, initialData, weekLabel, formType: propFormType
+  isOpen, onClose, onSave, initialData, weekLabel, formType: propFormType,
+  detectedPayment, onDetectedLater, onDetectedSkip
 }: TransactionFormDialogProps) => {
   const { toast } = useToast();
   const { user }  = useAuth();
@@ -511,6 +520,16 @@ export const TransactionFormDialog = ({
       setCurrentFormType(initialData.type);
       setSelectedDateTime(new Date(initialData.transaction_date));
       setQuickDate('other');
+    } else if (detectedPayment) {
+      setFormData({
+        account: 'upi',
+        category: '',
+        amount: detectedPayment.amount,
+        note: detectedPayment.merchant ? `Payment to ${detectedPayment.merchant}` : `${detectedPayment.appName} payment`,
+      });
+      setCurrentFormType('expense');
+      setSelectedDateTime(new Date(detectedPayment.occurredAt));
+      setQuickDate('other');
     } else {
       setFormData({ account: '', category: '', amount: '', note: '' });
       setCurrentFormType(propFormType ?? 'expense');
@@ -522,7 +541,7 @@ export const TransactionFormDialog = ({
     setConfirmedBucket(null);
     fetchCategories();
     if (user) getLearnedMappings(user.id).then(setLearned).catch(() => {});
-  }, [isOpen, initialData, propFormType, fetchCategories, user]);
+  }, [isOpen, initialData, detectedPayment, propFormType, fetchCategories, user]);
 
   // ── Tax insight (derived, offline classifier — never blocks saving) ─────
   const categoryLabel = allCategories.find(c => c.category_name === formData.category)?.label;
@@ -599,6 +618,15 @@ export const TransactionFormDialog = ({
               </DialogTitle>
             </div>
           </DialogHeader>
+
+          {detectedPayment && (
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2.5">
+              <p className="text-xs font-bold text-foreground">Detected from {detectedPayment.appName}</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                Amount, time and UPI are prefilled. Please verify them and choose the category before saving.
+              </p>
+            </div>
+          )}
 
           {/* ── Type toggle ── */}
           {!initialData && (
@@ -793,6 +821,25 @@ export const TransactionFormDialog = ({
               </span>
             ) : initialData ? "Update" : `Save ${currentFormType === 'income' ? 'income' : 'expense'}`}
           </button>
+
+          {detectedPayment && (
+            <div className="flex items-center justify-center gap-5 pt-0.5">
+              <button
+                type="button"
+                onClick={onDetectedLater}
+                className="text-xs font-semibold text-muted-foreground hover:text-primary pointer-events-auto"
+              >
+                Remind me later
+              </button>
+              <button
+                type="button"
+                onClick={onDetectedSkip}
+                className="text-xs font-semibold text-muted-foreground hover:text-destructive pointer-events-auto"
+              >
+                Not an expense
+              </button>
+            </div>
+          )}
 
         </div>
       </DialogContent>
