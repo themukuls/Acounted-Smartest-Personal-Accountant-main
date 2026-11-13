@@ -20,14 +20,6 @@ import { getMonthlyBudgets } from "@/integrations/indexeddb/services/monthlyBudg
 import { getMonthlyTransactions, saveTransaction, deleteTransaction } from "@/integrations/indexeddb/services/dataService";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGate } from "@/components/paywall/useGate";
-import {
-  completePendingPayment,
-  getPendingPayment,
-  paymentCaptureAvailable,
-  skipPendingPayment,
-  snoozePendingPayment,
-  type PendingPayment,
-} from "@/lib/paymentCapture/native";
 
 interface Transaction {
   id: string;
@@ -43,7 +35,7 @@ interface Transaction {
 const Expenses = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   // Every paid action on this page goes through `guard()` inside its handler.
   // The controls stay visible on purpose — a lapsed user pressing + gets an
@@ -65,39 +57,9 @@ const Expenses = () => {
   const [showTransactionFormDialog, setShowTransactionFormDialog] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [formDialogType, setFormDialogType] = useState<'income' | 'expense' | undefined>(undefined);
-  const [detectedPayment, setDetectedPayment] = useState<PendingPayment | null>(null);
 
   const [showStatsDialog, setShowStatsDialog] = useState(false);
   const [showSearchDialog, setShowSearchDialog] = useState(false);
-
-  const clearCapturePaymentParam = () => {
-    const next = new URLSearchParams(searchParams);
-    next.delete('capturePayment');
-    setSearchParams(next, { replace: true });
-  };
-
-  useEffect(() => {
-    const paymentId = searchParams.get('capturePayment');
-    if (!user || !paymentId || !paymentCaptureAvailable()) return;
-    let cancelled = false;
-
-    void getPendingPayment(paymentId).then(payment => {
-      if (cancelled) return;
-      if (!payment) {
-        clearCapturePaymentParam();
-        return;
-      }
-      setDetectedPayment(payment);
-      setEditingTransaction(null);
-      setFormDialogType('expense');
-      setSelectedWeekForDialog('');
-      setShowTransactionFormDialog(true);
-    }).catch(error => {
-      console.warn('[PaymentCapture] Could not open detected payment', error);
-    });
-
-    return () => { cancelled = true; };
-  }, [user, searchParams]);
 
   // ✅ FIX: removed `selectedMonth` from deps array.
   // Previously, having selectedMonth in deps caused the effect to re-run after
@@ -229,17 +191,6 @@ const Expenses = () => {
         description: DOMPurify.sanitize(data.note || ''),
         transaction_date: dateToUse.toISOString()
       });
-      if (detectedPayment && !data.transactionId) {
-        try {
-          await completePendingPayment(detectedPayment.id);
-          setDetectedPayment(null);
-          clearCapturePaymentParam();
-        } catch (captureError) {
-          // The ledger write already succeeded. Do not tell the user it failed
-          // merely because Android could not clear the reminder queue.
-          console.warn('[PaymentCapture] Transaction saved, but pending reminder could not be cleared', captureError);
-        }
-      }
       toast({
         title: "Success",
         description: `Transaction ${data.transactionId ? 'updated' : 'saved'} successfully`,
@@ -316,7 +267,6 @@ const Expenses = () => {
     if (!guard('canWrite')) return;
 
     setEditingTransaction(null);
-    setDetectedPayment(null);
     setFormDialogType(undefined);
     setShowTransactionFormDialog(true);
     if (activeWeekFilter) {
@@ -327,30 +277,6 @@ const Expenses = () => {
         setSelectedWeekForDialog(`${format(weeksInMonth[0].start, 'yyyy-MM-dd')}_${format(weeksInMonth[0].end, 'yyyy-MM-dd')}`);
       }
     }
-  };
-
-  const handleDetectedLater = async () => {
-    if (!detectedPayment) return;
-    try {
-      await snoozePendingPayment(detectedPayment.id);
-    } catch (error) {
-      console.warn('[PaymentCapture] Could not schedule reminder', error);
-    }
-    setDetectedPayment(null);
-    setShowTransactionFormDialog(false);
-    clearCapturePaymentParam();
-  };
-
-  const handleDetectedSkip = async () => {
-    if (!detectedPayment) return;
-    try {
-      await skipPendingPayment(detectedPayment.id);
-    } catch (error) {
-      console.warn('[PaymentCapture] Could not dismiss payment', error);
-    }
-    setDetectedPayment(null);
-    setShowTransactionFormDialog(false);
-    clearCapturePaymentParam();
   };
 
   const processedData = useMemo(() => {
@@ -854,7 +780,7 @@ const Expenses = () => {
       {/* ── Transaction Form Dialog ───────────────────────────────────────── */}
       <TransactionFormDialog
         isOpen={showTransactionFormDialog}
-        onClose={() => detectedPayment ? void handleDetectedLater() : setShowTransactionFormDialog(false)}
+        onClose={() => setShowTransactionFormDialog(false)}
         onSave={handleSaveTransaction}
         initialData={editingTransaction ? {
           id: editingTransaction.id,
@@ -867,14 +793,6 @@ const Expenses = () => {
         } : undefined}
         weekLabel={selectedWeekForDialog ? (processedData[selectedWeekForDialog]?.label || "") : ""}
         formType={formDialogType}
-        detectedPayment={detectedPayment ? {
-          amount: detectedPayment.amount,
-          merchant: detectedPayment.merchant,
-          occurredAt: detectedPayment.occurredAt,
-          appName: detectedPayment.appName,
-        } : undefined}
-        onDetectedLater={() => void handleDetectedLater()}
-        onDetectedSkip={() => void handleDetectedSkip()}
       />
 
       {/* ── Global Search ─────────────────────────────────────────────────── */}
