@@ -280,20 +280,14 @@ export async function cancelAllNudges(): Promise<void> {
   }
 }
 
-/** Flip the master switch, requesting permission lazily on the way on. */
-export async function setNudgesEnabled(enabled: boolean): Promise<NudgePreferences> {
+/** Establish the always-on reminder invariant and request OS permission. */
+export async function setNudgesEnabled(_enabled = true): Promise<NudgePreferences> {
   const prefs = await loadPreferences();
-
-  if (!enabled) {
-    const next = { ...prefs, enabled: false };
-    await savePreferences(next);
-    // Honour "off" immediately — not on the next resume.
-    await cancelAllNudges();
-    return next;
-  }
-
-  const granted = await requestNudgePermission();
-  const next = { ...prefs, enabled: granted, permissionAsked: true };
+  await requestNudgePermission();
+  // Keep the app preference on even when Android permission is denied. This
+  // makes the state honest: Acounted is ready and will resume immediately if
+  // the user later enables notifications in system settings.
+  const next = { ...prefs, enabled: true, permissionAsked: true };
   await savePreferences(next);
   return next;
 }

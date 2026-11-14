@@ -79,7 +79,6 @@ export const NudgeSettings = () => {
     preview,
     isPreviewLoading,
     isSaving,
-    setEnabled,
     setCategory,
   } = useNudgeSettings();
 
@@ -100,7 +99,7 @@ export const NudgeSettings = () => {
 
   return (
     <div className="space-y-4">
-      {/* ── Master toggle ── */}
+      {/* ── Always-on master state ── */}
       <div
         className={cn(
           'rounded-xl border p-3.5 transition-colors',
@@ -127,13 +126,7 @@ export const NudgeSettings = () => {
               </p>
             </div>
           </div>
-          <Switch
-            checked={enabled}
-            disabled={isSaving}
-            onCheckedChange={(v) => setEnabled(v)}
-            aria-label="Turn reminders on or off"
-            className="pointer-events-auto mt-0.5 shrink-0"
-          />
+          <span className="mt-0.5 shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700">Always on</span>
         </div>
       </div>
 
@@ -223,9 +216,7 @@ export const NudgeSettings = () => {
               {blocked ?? 'Nothing worth sending right now.'}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-              {enabled
-                ? 'That is the normal state. Silence means nothing in your data has earned a nudge today.'
-                : 'Turn reminders on to see what would come through.'}
+              That is the normal state. Silence means nothing in your data has earned a nudge today.
             </p>
           </div>
         )}

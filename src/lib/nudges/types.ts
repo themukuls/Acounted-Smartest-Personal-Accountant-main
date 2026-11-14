@@ -200,9 +200,9 @@ export interface NudgePreferences {
 }
 
 export const DEFAULT_PREFERENCES: NudgePreferences = {
-  // Off until the user asks for it. Nobody opted into notifications by
-  // installing a budgeting app.
-  enabled: false,
+  // Reminders are an always-on part of Acounted. Android still controls the
+  // notification permission, but the app-level preference never starts off.
+  enabled: true,
   categories: {
     reengagement: true,
     encouragement: true,

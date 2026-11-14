@@ -8,8 +8,8 @@
  *   `useNudgeSettings()`— everything the Reminders UI needs: preferences,
  *                         the live preview, and the toggles.
  *
- * The engine deliberately does almost nothing. It never asks for permission,
- * never schedules at cold start, and throttles itself hard: the caps inside
+ * The engine deliberately does almost nothing. It schedules at cold start
+ * after establishing notification permission, and throttles itself hard: the caps inside
  * the scheduler already make repeat cycles idempotent, so the throttle here is
  * only about not doing pointless work on a mid-range phone.
  */
@@ -67,10 +67,7 @@ export function useNudgeEngine(): void {
       running.current = true;
       lastRun.current = now;
       try {
-        // Cheap early exit: don't read the whole ledger for a user who has
-        // never switched reminders on.
         const prefs = await loadPreferences();
-        if (!prefs.enabled) return;
 
         const snapshot = await collectSnapshot(userId, getISTDate());
         await runNudgeCycle(snapshot);
@@ -86,7 +83,9 @@ export function useNudgeEngine(): void {
   // Resume + first mount.
   useEffect(() => {
     if (!userId) return;
-    void cycle();
+    // Migrate legacy off preferences, create the Android channel and request
+    // notification permission when it has not yet been decided.
+    void setNudgesEnabled(true).then(() => cycle(true));
 
     let remove: (() => void) | undefined;
     void (async () => {
@@ -163,7 +162,6 @@ export interface UseNudgeSettings {
   preview: ReturnType<typeof previewNudges> | undefined;
   isPreviewLoading: boolean;
   isSaving: boolean;
-  setEnabled: (enabled: boolean) => void;
   setCategory: (category: NudgeCategory, enabled: boolean) => void;
 }
 
@@ -198,14 +196,6 @@ export function useNudgeSettings(enabled = true): UseNudgeSettings {
     void queryClient.invalidateQueries({ queryKey: ['nudgePreview'] });
   };
 
-  const master = useMutation({
-    mutationFn: (next: boolean) => setNudgesEnabled(next),
-    onSuccess: (prefs) => {
-      queryClient.setQueryData(['nudgePreferences'], prefs);
-      invalidate();
-    },
-  });
-
   const category = useMutation({
     mutationFn: ({ cat, value }: { cat: NudgeCategory; value: boolean }) =>
       updatePreferences({ categories: { [cat]: value } }),
@@ -220,8 +210,7 @@ export function useNudgeSettings(enabled = true): UseNudgeSettings {
     isLoading: prefsQuery.isLoading,
     preview: previewQuery.data,
     isPreviewLoading: previewQuery.isLoading || previewQuery.isFetching,
-    isSaving: master.isPending || category.isPending,
-    setEnabled: (next) => master.mutate(next),
+    isSaving: category.isPending,
     setCategory: (cat, value) => category.mutate({ cat, value }),
   };
 }

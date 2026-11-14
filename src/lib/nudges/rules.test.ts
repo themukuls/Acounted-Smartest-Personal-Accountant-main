@@ -786,8 +786,8 @@ describe('plumbing', () => {
     expect(a).not.toBe(notificationIdFor('goal-progress:g1:75'));
   });
 
-  test('preferences default to OFF — nobody opts in by installing the app', () => {
-    expect(DEFAULT_PREFERENCES.enabled).toBe(false);
+  test('preferences default to ON', () => {
+    expect(DEFAULT_PREFERENCES.enabled).toBe(true);
   });
 
   test('a category added in a later release defaults to on, not silently off', () => {
@@ -797,6 +797,10 @@ describe('plumbing', () => {
     expect(p.categories.reminders).toBe(false);
     expect(p.categories.milestones).toBe(true);
     expect(p.quietStartHour).toBe(22);
+  });
+
+  test('legacy master-off preference is migrated to always on', () => {
+    expect(normalisePreferences({ enabled: false }).enabled).toBe(true);
   });
 
   test('nonsense stored values fall back to the defaults', () => {

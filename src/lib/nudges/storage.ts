@@ -88,7 +88,9 @@ export function normalisePreferences(raw: unknown): NudgePreferences {
     typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 23 ? v : fallback;
 
   return {
-    enabled: typeof p.enabled === 'boolean' ? p.enabled : DEFAULT_PREFERENCES.enabled,
+    // Migrate every legacy "off" preference to the always-on product default.
+    // The OS notification permission remains the user's ultimate control.
+    enabled: true,
     categories,
     quietStartHour: hour(p.quietStartHour, DEFAULT_PREFERENCES.quietStartHour),
     quietEndHour: hour(p.quietEndHour, DEFAULT_PREFERENCES.quietEndHour),
