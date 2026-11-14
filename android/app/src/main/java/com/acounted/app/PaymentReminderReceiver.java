@@ -12,7 +12,6 @@ public class PaymentReminderReceiver extends BroadcastReceiver {
         String id = intent == null ? null : intent.getStringExtra(PaymentNotificationHelper.EXTRA_PAYMENT_ID);
         if (id == null) return;
         PendingPaymentStore store = new PendingPaymentStore(context);
-        if (!store.isEnabled()) return;
         JSONObject payment = store.get(id);
         if (payment != null) PaymentNotificationHelper.show(context, payment, true);
     }

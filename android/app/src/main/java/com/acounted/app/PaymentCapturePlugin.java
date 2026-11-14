@@ -23,7 +23,7 @@ public class PaymentCapturePlugin extends Plugin {
     public void getStatus(PluginCall call) {
         PendingPaymentStore store = new PendingPaymentStore(getContext());
         JSObject result = new JSObject();
-        result.put("enabled", store.isEnabled());
+        result.put("enabled", true);
         result.put("notificationAccessGranted", hasNotificationAccess());
         result.put("notificationsGranted", NotificationManagerCompat.from(getContext()).areNotificationsEnabled());
         result.put("pendingCount", store.list().length());
@@ -32,21 +32,18 @@ public class PaymentCapturePlugin extends Plugin {
 
     @PluginMethod
     public void setEnabled(PluginCall call) {
-        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
         PendingPaymentStore store = new PendingPaymentStore(getContext());
-        store.setEnabled(enabled);
-        if (enabled) {
-            JSONArray pending = store.list();
-            for (int i = 0; i < pending.length(); i++) {
-                JSONObject payment = pending.optJSONObject(i);
-                if (payment == null) continue;
-                long savedTime = payment.optLong("remindAt", 0L);
-                long remindAt = savedTime > System.currentTimeMillis()
-                    ? savedTime
-                    : PaymentNotificationHelper.nextReminderTime();
-                PaymentNotificationHelper.scheduleReminder(getContext(), payment.optString("id"), remindAt);
-            }
-        } else PaymentNotificationHelper.cancelAll(getContext());
+        store.setEnabled(true);
+        JSONArray pending = store.list();
+        for (int i = 0; i < pending.length(); i++) {
+            JSONObject payment = pending.optJSONObject(i);
+            if (payment == null) continue;
+            long savedTime = payment.optLong("remindAt", 0L);
+            long remindAt = savedTime > System.currentTimeMillis()
+                ? savedTime
+                : PaymentNotificationHelper.nextReminderTime();
+            PaymentNotificationHelper.scheduleReminder(getContext(), payment.optString("id"), remindAt);
+        }
         call.resolve();
     }
 

@@ -12,8 +12,6 @@ public class PaymentBootReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null || !Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) return;
         PendingPaymentStore store = new PendingPaymentStore(context);
-        if (!store.isEnabled()) return;
-
         JSONArray pending = store.list();
         for (int i = 0; i < pending.length(); i++) {
             JSONObject payment = pending.optJSONObject(i);

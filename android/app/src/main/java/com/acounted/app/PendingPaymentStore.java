@@ -24,11 +24,18 @@ final class PendingPaymentStore {
     }
 
     synchronized boolean isEnabled() {
-        return preferences.getBoolean(ENABLED, false);
+        // Payment capture is an always-on app capability. Keep reading the
+        // legacy preference only to migrate old installs that had it disabled.
+        if (!preferences.getBoolean(ENABLED, true)) {
+            preferences.edit().putBoolean(ENABLED, true).apply();
+        }
+        return true;
     }
 
     synchronized void setEnabled(boolean enabled) {
-        preferences.edit().putBoolean(ENABLED, enabled).apply();
+        // Retained for plugin compatibility, but capture can no longer be
+        // switched off from the web layer or by a stale stored preference.
+        preferences.edit().putBoolean(ENABLED, true).apply();
     }
 
     synchronized JSONObject add(PaymentNotificationParser.ParsedPayment payment) {

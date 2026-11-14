@@ -12,6 +12,7 @@ import { useNudgeEngine } from "@/hooks/useNudges";
 import { TrialBanner } from "@/components/paywall/TrialBanner";
 import { LapsedBar } from "@/components/paywall/LapsedBar";
 import { usePaymentCaptureNavigation } from "@/hooks/usePaymentCaptureNavigation";
+import { useAlwaysOnPaymentCapture } from "@/hooks/useAlwaysOnPaymentCapture";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -25,6 +26,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   // reminders on in the bell → Reminders tab, so this costs nothing by default.
   useNudgeEngine();
   usePaymentCaptureNavigation();
+  useAlwaysOnPaymentCapture();
   const [showNotificationPanel, setShowNotificationPanel] = useState(false); // NEW: State for notification panel
   const [showAssistant, setShowAssistant] = useState(false);
   const [showAssistantSettings, setShowAssistantSettings] = useState(false);

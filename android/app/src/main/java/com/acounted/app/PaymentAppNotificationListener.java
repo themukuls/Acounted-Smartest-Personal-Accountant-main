@@ -11,7 +11,7 @@ public class PaymentAppNotificationListener extends NotificationListenerService 
     @Override
     public void onNotificationPosted(StatusBarNotification notification) {
         PendingPaymentStore store = new PendingPaymentStore(this);
-        if (!store.isEnabled() || notification == null || !PaymentAppRegistry.supports(notification.getPackageName())) return;
+        if (notification == null || !PaymentAppRegistry.supports(notification.getPackageName())) return;
 
         Notification value = notification.getNotification();
         Bundle extras = value == null ? null : value.extras;

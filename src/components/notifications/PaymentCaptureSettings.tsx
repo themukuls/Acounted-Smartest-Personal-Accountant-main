@@ -4,24 +4,12 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { App } from '@capacitor/app';
 import { CheckCircle2, Clock3, RefreshCw, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { formatFullINR } from '@/lib/currency';
 import {
   getPaymentCaptureStatus,
   listPendingPayments,
   openPaymentNotificationAccess,
   paymentCaptureAvailable,
-  setPaymentCaptureEnabled,
   skipPendingPayment,
   snoozePendingPayment,
   SUPPORTED_PAYMENT_APPS,
@@ -46,7 +34,6 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
   const [status, setStatus] = useState(EMPTY_STATUS);
   const [payments, setPayments] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(available);
-  const [showDisclosure, setShowDisclosure] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!available) return;
@@ -74,21 +61,13 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
     return () => { void listener.then(handle => handle.remove()); };
   }, [available, refresh]);
 
-  const enable = async () => {
+  const requestNotificationPermission = async () => {
     try {
       await LocalNotifications.requestPermissions();
-      await setPaymentCaptureEnabled(true);
-      setShowDisclosure(false);
-      if (!status.notificationAccessGranted) await openPaymentNotificationAccess();
       await refresh();
     } catch (error) {
-      console.warn('[PaymentCapture] Could not enable detection', error);
+      console.warn('[PaymentCapture] Could not request notifications', error);
     }
-  };
-
-  const disable = async () => {
-    await setPaymentCaptureEnabled(false);
-    await refresh();
   };
 
   const review = (_id: string) => {
@@ -126,15 +105,10 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
               After a supported app reports a successful payment, Acounted prepares a local expense draft with the amount and time.
             </p>
           </div>
-          <Switch
-            checked={status.enabled}
-            onCheckedChange={checked => checked ? setShowDisclosure(true) : void disable()}
-            aria-label="Detect payment app transactions"
-          />
+          <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700">Always on</span>
         </div>
 
-        {status.enabled && (
-          <div className="space-y-2 rounded-lg bg-muted/40 p-3">
+        <div className="space-y-2 rounded-lg bg-muted/40 p-3">
             <div className="flex items-center gap-2 text-xs">
               {status.notificationAccessGranted
                 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -143,17 +117,21 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
             </div>
             {!status.notificationAccessGranted && (
               <Button size="sm" className="w-full" onClick={() => void openPaymentNotificationAccess()}>
-                Open Android settings
+                Allow payment notification access
               </Button>
             )}
             {!status.notificationsGranted && (
-              <p className="text-[11px] text-amber-700">Allow Acounted notifications too, otherwise drafts are saved but prompts cannot appear.</p>
+              <div className="space-y-2">
+                <p className="text-[11px] text-amber-700">Allow Acounted notifications so captured payments always appear as prompts.</p>
+                <Button size="sm" variant="outline" className="w-full" onClick={() => void requestNotificationPermission()}>
+                  Allow Acounted notifications
+                </Button>
+              </div>
             )}
             <button type="button" onClick={() => void refresh()} className="flex items-center gap-1 text-[11px] font-semibold text-primary">
               <RefreshCw className={loading ? 'h-3 w-3 animate-spin' : 'h-3 w-3'} /> Refresh status
             </button>
           </div>
-        )}
 
         <div>
           <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Supported apps</p>
@@ -205,24 +183,8 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
       </div>
 
       <p className="text-[10px] leading-relaxed text-muted-foreground">
-        Private by design: Acounted checks notifications only from the supported payment apps after you enable Android Notification Access. It stores only the extracted app, amount, merchant, reference and time inside Acounted on this phone. It does not read SMS, watch the screen, or upload this data.
+        Private by design: automatic capture stays on, but Android requires you to grant Notification Access once. Acounted checks only supported payment apps and stores the extracted app, amount, merchant, reference and time on this phone. It does not read SMS, watch the screen, or upload this data.
       </p>
-
-      <AlertDialog open={showDisclosure} onOpenChange={setShowDisclosure}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Allow payment-app detection?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <span className="block">Android will show a broad “Notification Access” permission because it cannot grant access to only one app.</span>
-              <span className="block">Acounted discards notifications from unsupported apps and rejects incoming, failed, pending, refunded and promotional messages. Detection and storage stay on this phone.</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Not now</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void enable()}>Continue to Android settings</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -9,6 +9,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(PaymentCapturePlugin.class);
+        // Migrate existing installs and establish the always-on default before
+        // the web UI starts. Android still requires the user to grant the two
+        // notification permissions; the app requests those separately.
+        new PendingPaymentStore(this).setEnabled(true);
         super.onCreate(savedInstanceState);
     }
 
