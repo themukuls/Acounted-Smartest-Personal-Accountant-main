@@ -12,7 +12,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
 import { ExpenseStatsDialog } from "@/components/expenses/ExpenseStatsDialog";
 import { GlobalSearchDialog } from "@/components/search/GlobalSearchDialog";
-import { RecurringTeaser } from "@/components/recurring/RecurringTeaser";
+import { PaymentReconciliationBanner } from "@/components/paymentCapture/PaymentReconciliationBanner";
+import { PaymentReconciliationSheet } from "@/components/paymentCapture/PaymentReconciliationSheet";
+import { usePendingPayments } from "@/hooks/usePendingPayments";
+import { completePendingPayment, skipPendingPayment, type PendingPayment } from "@/lib/paymentCapture/native";
+import { findPaymentMerchantMapping, rememberPaymentMerchantMapping, type PaymentMerchantMapping } from "@/integrations/indexeddb/services/paymentMerchantService";
 import { cn } from "@/lib/utils";
 import { format, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameWeek } from "date-fns";
 import DOMPurify from 'dompurify';
@@ -60,6 +64,22 @@ const Expenses = () => {
 
   const [showStatsDialog, setShowStatsDialog] = useState(false);
   const [showSearchDialog, setShowSearchDialog] = useState(false);
+  const [showReconciliation, setShowReconciliation] = useState(false);
+  const [reviewingPayment, setReviewingPayment] = useState<PendingPayment | null>(null);
+  const [paymentMappings, setPaymentMappings] = useState<Record<string, PaymentMerchantMapping | null>>({});
+  const { payments: pendingPayments, refresh: refreshPendingPayments } = usePendingPayments();
+
+  useEffect(() => {
+    if (searchParams.get('reviewPayments') === '1' || searchParams.get('capturePayment')) setShowReconciliation(true);
+  }, [searchParams]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || pendingPayments.length === 0) { setPaymentMappings({}); return; }
+    void Promise.all(pendingPayments.map(async payment => [payment.id, await findPaymentMerchantMapping(user.id, payment)] as const))
+      .then(entries => { if (active) setPaymentMappings(Object.fromEntries(entries)); });
+    return () => { active = false; };
+  }, [user, pendingPayments]);
 
   // ✅ FIX: removed `selectedMonth` from deps array.
   // Previously, having selectedMonth in deps caused the effect to re-run after
@@ -191,6 +211,16 @@ const Expenses = () => {
         description: DOMPurify.sanitize(data.note || ''),
         transaction_date: dateToUse.toISOString()
       });
+      if (reviewingPayment && !data.transactionId) {
+        await rememberPaymentMerchantMapping(user.id, reviewingPayment, {
+          category: data.category,
+          account: data.account,
+          note: DOMPurify.sanitize(data.note || ''),
+        });
+        await completePendingPayment(reviewingPayment.id);
+        setReviewingPayment(null);
+        await refreshPendingPayments();
+      }
       toast({
         title: "Success",
         description: `Transaction ${data.transactionId ? 'updated' : 'saved'} successfully`,
@@ -215,6 +245,51 @@ const Expenses = () => {
         variant: "destructive",
       });
       throw error;
+    }
+  };
+
+  const saveReconciledPayment = async (payment: PendingPayment, mapping: PaymentMerchantMapping) => {
+    if (!guard('canWrite') || !user) return;
+    try {
+      await saveTransaction(user.id, {
+        type: 'expense',
+        amount: Number(payment.amount),
+        category: mapping.category,
+        account: mapping.account,
+        description: DOMPurify.sanitize(mapping.note || ''),
+        transaction_date: new Date(payment.occurredAt).toISOString(),
+      });
+      await rememberPaymentMerchantMapping(user.id, payment, mapping);
+      await completePendingPayment(payment.id);
+      await refreshPendingPayments();
+      await fetchTransactionsAndBudgetDates(activeWeekFilter, selectedMonth);
+      queryClient.invalidateQueries({ queryKey: ['quickActionsWeeklySummary'] });
+      queryClient.invalidateQueries({ queryKey: ['weeklyBudgetProjections'] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyTransactionsForSavings'] });
+      queryClient.invalidateQueries({ queryKey: ['globalSearchCorpus'] });
+      toast({ title: 'Expense saved', description: `${payment.merchant || payment.appName} was reconciled.` });
+    } catch (error) {
+      console.error('Error reconciling payment:', error);
+      toast({ title: 'Could not save expense', variant: 'destructive' });
+    }
+  };
+
+  const reviewPayment = (payment: PendingPayment) => {
+    if (!guard('canWrite')) return;
+    setReviewingPayment(payment);
+    setEditingTransaction(null);
+    setFormDialogType('expense');
+    setShowReconciliation(false);
+    setShowTransactionFormDialog(true);
+  };
+
+  const skipPayment = async (payment: PendingPayment) => {
+    await skipPendingPayment(payment.id);
+    await refreshPendingPayments();
+    if (reviewingPayment?.id === payment.id) {
+      setReviewingPayment(null);
+      setShowTransactionFormDialog(false);
+      setShowReconciliation(true);
     }
   };
 
@@ -468,11 +543,7 @@ const Expenses = () => {
           </div>
         </div>
 
-        {/* ── Recurring charges ─────────────────────────────────────────── */}
-        {/* Above the month selector on purpose: it is the one card on this page
-            that is NOT scoped to the selected month, so putting it below the
-            month/week pickers would read as "recurring charges in August". */}
-        <RecurringTeaser />
+        <PaymentReconciliationBanner count={pendingPayments.length} onClick={() => setShowReconciliation(true)} />
 
         {/* ── Month Selector ────────────────────────────────────────────── */}
         <div ref={monthScrollRef} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -780,7 +851,10 @@ const Expenses = () => {
       {/* ── Transaction Form Dialog ───────────────────────────────────────── */}
       <TransactionFormDialog
         isOpen={showTransactionFormDialog}
-        onClose={() => setShowTransactionFormDialog(false)}
+        onClose={() => {
+          setShowTransactionFormDialog(false);
+          if (reviewingPayment) { setReviewingPayment(null); setShowReconciliation(true); }
+        }}
         onSave={handleSaveTransaction}
         initialData={editingTransaction ? {
           id: editingTransaction.id,
@@ -793,6 +867,27 @@ const Expenses = () => {
         } : undefined}
         weekLabel={selectedWeekForDialog ? (processedData[selectedWeekForDialog]?.label || "") : ""}
         formType={formDialogType}
+        detectedPayment={reviewingPayment ? {
+          amount: reviewingPayment.amount,
+          merchant: reviewingPayment.merchant,
+          occurredAt: reviewingPayment.occurredAt,
+          appName: reviewingPayment.appName,
+          category: paymentMappings[reviewingPayment.id]?.category,
+          account: paymentMappings[reviewingPayment.id]?.account,
+          note: paymentMappings[reviewingPayment.id]?.note,
+        } : undefined}
+        onDetectedLater={() => { setShowTransactionFormDialog(false); setReviewingPayment(null); setShowReconciliation(true); }}
+        onDetectedSkip={() => reviewingPayment && void skipPayment(reviewingPayment)}
+      />
+
+      <PaymentReconciliationSheet
+        open={showReconciliation}
+        onOpenChange={setShowReconciliation}
+        payments={pendingPayments}
+        mappings={paymentMappings}
+        onReview={reviewPayment}
+        onSave={(payment, mapping) => void saveReconciledPayment(payment, mapping)}
+        onSkip={payment => void skipPayment(payment)}
       />
 
       {/* ── Global Search ─────────────────────────────────────────────────── */}

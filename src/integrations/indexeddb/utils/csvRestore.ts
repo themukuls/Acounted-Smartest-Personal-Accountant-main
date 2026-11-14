@@ -42,7 +42,7 @@ import { keyFieldFor, type StoreName } from '@/integrations/storage/stores';
 // once and only end a record on a newline that is outside quotes.
 
 export function parseCSVRecords(csvText: string): string[][] {
-  const text = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const text = csvText.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const records: string[][] = [];
 
   let record: string[] = [];
@@ -71,8 +71,11 @@ export function parseCSVRecords(csvText: string): string[][] {
       current += ch;
     }
   }
-  // Trailing record with no final newline (and an unterminated quote lands here
-  // too — better a truncated last row than a discarded file).
+  if (inQuotes) {
+    throw new Error('This CSV has an unterminated quoted field.');
+  }
+
+  // Trailing record with no final newline.
   if (current !== '' || record.length > 0) endRecord();
 
   return records;
@@ -1042,6 +1045,49 @@ export function parseCSVBackup(csvText: string): CSVBackupData {
   }
 
   return result;
+}
+
+const KNOWN_BACKUP_SECTIONS = new Set([
+  'profiles', 'transactions', 'income_details', 'income_sources',
+  'expense_categories', 'investment_types', 'monthly_budgets',
+  'variable_budget_entries', 'savings_goals', 'udhar_entries',
+  'recall_products', 'user_notifications', 'lendr_groups', 'lendr_expenses',
+  'ai_tax_planner_input', 'ai_tax_planner_output', 'advance_tax_payments',
+  'capital_gains_entries', 'tax_calendar_state', 'salary_restructuring',
+  'tds_entries', 'itr_checklist',
+]);
+
+/**
+ * Parse a user-selected file only after checking that its contents follow an
+ * Acounted CSV backup shape. File names and Android MIME types are deliberately
+ * ignored: document providers frequently expose a valid CSV as text/plain or
+ * application/octet-stream, and users may rename the file.
+ */
+export function parseCSVBackupFile(csvText: string): CSVBackupData {
+  const records = parseCSVRecords(csvText);
+  if (records.length === 0) {
+    throw new Error('The selected file is empty.');
+  }
+
+  const hasKnownSection = records.some((row) =>
+    row[0]?.trim().toLowerCase() === 'section' &&
+    KNOWN_BACKUP_SECTIONS.has(row[1]?.trim().toLowerCase()),
+  );
+  // Older web backups did not always include section/header rows, so retain
+  // support for their direct `TRANSACTIONS,...` / `PROFILES,...` records.
+  const hasKnownDataRow = records.some((row) =>
+    KNOWN_BACKUP_SECTIONS.has(row[0]?.trim().toLowerCase()),
+  );
+
+  if (!hasKnownSection && !hasKnownDataRow) {
+    throw new Error('This is a CSV file, but it is not in Acounted backup format.');
+  }
+
+  const parsed = parseCSVBackup(csvText);
+  if (parsed.profileRows.length === 0) {
+    throw new Error('No Acounted profile was found in this backup file.');
+  }
+  return parsed;
 }
 
 // ─── Validate ownership — email + phone must match a profile in the file ──────

@@ -25,7 +25,6 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import IncomeGathering from "./pages/IncomeGathering";
 import Expenses from "./pages/Expenses";
-import Subscriptions from "./pages/Subscriptions";
 import TaxCopilot from "./pages/TaxCopilot";
 import Budget from "./pages/Budget";
 import TaxPlannerAI from "./pages/TaxPlannerAI";
@@ -254,14 +253,7 @@ function AppContent() {
           <Expenses />
         </ProtectedRoute>
       } />
-      {/* Detected recurring charges. A sibling of /expenses rather than a
-          section inside it: the detector reads the whole ledger, while every
-          other block on the Expenses page is scoped to the selected month. */}
-      <Route path="/subscriptions" element={
-        <ProtectedRoute>
-          <Subscriptions />
-        </ProtectedRoute>
-      } />
+      <Route path="/subscriptions" element={<Navigate to="/expenses" replace />} />
       {/* Tax Copilot — the merged chat + tax hub. The two old routes redirect
           so existing bookmarks and installed PWA shortcuts keep working. */}
       <Route path="/tax-copilot" element={

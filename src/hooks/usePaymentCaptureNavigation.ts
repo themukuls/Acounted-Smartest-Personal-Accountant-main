@@ -13,7 +13,7 @@ export function usePaymentCaptureNavigation(): void {
     const openCapturedPayment = async () => {
       try {
         const id = await getLaunchPaymentId();
-        if (active && id) navigate(`/expenses?capturePayment=${encodeURIComponent(id)}`);
+        if (active && id) navigate('/expenses?reviewPayments=1');
       } catch (error) {
         console.warn('[PaymentCapture] Could not read notification launch', error);
       }

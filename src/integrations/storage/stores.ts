@@ -1,6 +1,6 @@
 /**
  * stores.ts — the store catalogue, derived 1:1 from
- * `src/integrations/indexeddb/db.ts` (schema version 11).
+ * `src/integrations/indexeddb/db.ts` (schema version 12).
  *
  * Nothing here is invented. If a store is added to db.ts it must be added here
  * too, otherwise `StoreName` will reject it at compile time — which is the
@@ -10,7 +10,7 @@
 
 /**
  * Every object store in the IndexedDB schema, in db.ts declaration order.
- * 23 stores as of DB_VERSION 11.
+ * 24 stores as of DB_VERSION 12.
  */
 export const STORE_NAMES = [
   'profiles',
@@ -36,6 +36,7 @@ export const STORE_NAMES = [
   'tds_entries',
   'itr_checklist',
   'learned_tax_mappings',
+  'payment_merchant_mappings',
 ] as const;
 
 export type StoreName = (typeof STORE_NAMES)[number];
@@ -70,6 +71,7 @@ export const STORE_KEY_FIELDS: Record<StoreName, string> = {
   tds_entries: 'id',
   itr_checklist: 'id',
   learned_tax_mappings: 'id',
+  payment_merchant_mappings: 'id',
 };
 
 /** The key field for a store. */

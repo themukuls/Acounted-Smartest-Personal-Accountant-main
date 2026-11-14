@@ -13,9 +13,10 @@ import {
   TrendingUp, Target, Layers, AlertTriangle, Delete,
 } from "lucide-react";
 import {
-  parseCSVBackup, validateCSVOwnership, importCSVToIndexedDB,
+  validateCSVOwnership, importCSVToIndexedDB,
   CSVBackupData, CSVImportResult,
 } from "@/integrations/indexeddb/utils/csvRestore";
+import { readSelectedBackupFile } from "@/integrations/indexeddb/utils/selectedBackup";
 
 // ─── PIN Pad (inline, reused from Auth) ───────────────────────────────────────
 
@@ -180,22 +181,20 @@ export const CSVImportScreen = ({ onCancel }: CSVImportScreenProps) => {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.name.endsWith(".csv")) {
-      setError("Please select a CSV backup file (.csv)");
-      return;
-    }
+    // Clear immediately so selecting the same file again still fires change.
+    e.target.value = "";
     setLoading(true);
     setError("");
     try {
-      const text   = await file.text();
-      const parsed = parseCSVBackup(text);
-      if (!parsed.profiles || parsed.profiles.length === 0) {
-        setError("No profile found in this file. Are you sure this is an Acounted backup?");
+      const selected = await readSelectedBackupFile(file);
+      if (selected.kind !== 'csv') {
+        setError("This restore screen needs an Acounted CSV backup file.");
         return;
       }
-      setCsvData(parsed);
-    } catch {
-      setError("Could not read the file. Please try again.");
+      setCsvData(selected.data);
+    } catch (cause) {
+      setCsvData(null);
+      setError(cause instanceof Error ? cause.message : "Could not read the selected file.");
     } finally {
       setLoading(false);
     }
@@ -356,7 +355,7 @@ export const CSVImportScreen = ({ onCancel }: CSVImportScreenProps) => {
                 </>
               )}
             </button>
-            <input ref={fileRef} type="file" accept=".csv"
+            <input ref={fileRef} type="file"
               onChange={handleFileSelect} className="hidden" />
           </div>
 

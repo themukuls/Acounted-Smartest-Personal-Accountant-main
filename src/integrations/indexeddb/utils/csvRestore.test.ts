@@ -25,6 +25,7 @@ import { getAll, resetCache } from '../../storage/repository';
 
 import {
   parseCSVBackup,
+  parseCSVBackupFile,
   parseCSVRecords,
   validateCSVOwnership,
   importCSVToIndexedDB,
@@ -254,6 +255,24 @@ describe('unknown sections', () => {
 // ── 7. Record-aware parsing ──────────────────────────────────────────────────
 
 describe('record-aware parser', () => {
+  test('accepts a valid backup regardless of BOM or filename metadata', () => {
+    const data = parseCSVBackupFile(`\uFEFF${FIXTURE}`);
+    expect(data.profileRows).toHaveLength(1);
+    expect(data.transactionRows).toHaveLength(6);
+  });
+
+  test('rejects a generic CSV after selection', () => {
+    expect(() => parseCSVBackupFile('name,amount\nCoffee,100\n')).toThrow(
+      'not in Acounted backup format',
+    );
+  });
+
+  test('rejects malformed quoted CSV', () => {
+    expect(() => parseCSVBackupFile('section,profiles\n"unfinished')).toThrow(
+      'unterminated quoted field',
+    );
+  });
+
   test('a newline inside a quoted field does not split the record', () => {
     const csv =
       'section,transactions\n' +

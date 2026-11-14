@@ -91,9 +91,9 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
     await refresh();
   };
 
-  const review = (id: string) => {
+  const review = (_id: string) => {
     onClose();
-    navigate(`/expenses?capturePayment=${encodeURIComponent(id)}`);
+    navigate('/expenses?reviewPayments=1');
   };
 
   const later = async (id: string) => {

@@ -24,6 +24,18 @@ allprojects {
     }
 }
 
+// The Android modules target Java 21 bytecode (Capacitor 7's supported level),
+// but the build itself is intentionally JDK 25-only. Select JDK 25 as the Java
+// toolchain while preserving each module's source/target compatibility settings.
+subprojects { subproject ->
+    subproject.afterEvaluate {
+        if (subproject.plugins.hasPlugin('com.android.application') ||
+                subproject.plugins.hasPlugin('com.android.library')) {
+            subproject.java.toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }

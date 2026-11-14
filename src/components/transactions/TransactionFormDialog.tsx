@@ -50,6 +50,9 @@ interface TransactionFormDialogProps {
     merchant: string | null;
     occurredAt: number;
     appName: string;
+    category?: string;
+    account?: string;
+    note?: string;
   };
   onDetectedLater?: () => void;
   onDetectedSkip?: () => void;
@@ -522,10 +525,10 @@ export const TransactionFormDialog = ({
       setQuickDate('other');
     } else if (detectedPayment) {
       setFormData({
-        account: 'upi',
-        category: '',
+        account: detectedPayment.account || 'upi',
+        category: detectedPayment.category || '',
         amount: detectedPayment.amount,
-        note: detectedPayment.merchant ? `Payment to ${detectedPayment.merchant}` : `${detectedPayment.appName} payment`,
+        note: detectedPayment.note ?? (detectedPayment.merchant ? `Payment to ${detectedPayment.merchant}` : `${detectedPayment.appName} payment`),
       });
       setCurrentFormType('expense');
       setSelectedDateTime(new Date(detectedPayment.occurredAt));

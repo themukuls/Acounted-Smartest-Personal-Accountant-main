@@ -23,12 +23,7 @@ export const MobileBottomNav = () => {
     "/dashboard": [
       "/dashboard", "/track-savings", "/income-setup",
     ],
-    // /subscriptions has no bottom-nav item of its own — six is already more
-    // than fits without scrolling. It lives under Expenses so the tab stays
-    // highlighted while the user is on it, and is reached from a card there.
-    "/expenses": [
-      "/expenses", "/subscriptions",
-    ],
+    "/expenses": ["/expenses"],
     "/budget": [
       "/budget",
     ],

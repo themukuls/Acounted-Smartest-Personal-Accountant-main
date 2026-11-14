@@ -460,10 +460,28 @@ export interface MyDB extends DBSchema {
     };
     indexes: { 'user_id': string };
   };
+  payment_merchant_mappings: {
+    key: string; // `${user_id}::${source_package}::${merchant_key}`
+    value: {
+      id: string;
+      user_id: string;
+      merchant_key: string;
+      display_name: string;
+      source_package: string;
+      category: string;
+      account: string;
+      note: string;
+      confirmations: number;
+      last_amount: number;
+      created_at: string;
+      updated_at: string;
+    };
+    indexes: { 'user_id': string };
+  };
 }
 
 const DB_NAME = 'vidhence-db';
-const DB_VERSION = 11; // Bumped: learned_tax_mappings store added (tax classifier memory)
+const DB_VERSION = 12; // Bumped: remembered payment-merchant defaults
 
 let db: IDBPDatabase<MyDB>;
 
@@ -578,6 +596,11 @@ export async function getDb(): Promise<IDBPDatabase<MyDB>> {
           const learnedStore = db.createObjectStore('learned_tax_mappings', { keyPath: 'id' });
           learnedStore.createIndex('user_id', 'user_id', { unique: false });
           console.log('[DB v11] learned_tax_mappings store created.');
+        }
+        if (oldVersion < 12) {
+          const merchantStore = db.createObjectStore('payment_merchant_mappings', { keyPath: 'id' });
+          merchantStore.createIndex('user_id', 'user_id', { unique: false });
+          console.log('[DB v12] payment_merchant_mappings store created.');
         }
       },
     });

@@ -9,7 +9,6 @@ import {
   HandCoins,
   Archive,
   Sparkles,
-  Repeat,
 } from "lucide-react";
 import { NotificationBadge } from "@/components/notifications/NotificationBadge";
 
@@ -17,10 +16,6 @@ const navigationItems = [
   { id: 'track-savings',    label: 'Dashboard',  icon: PiggyBank,   href: '/dashboard'        },
   { id: 'create-budget',    label: 'Budget',     icon: Target,      href: '/budget'           },
   { id: 'expense-tracker',  label: 'Expenses',   icon: CreditCard,  href: '/expenses'         },
-  // Gets its own row here (unlike the mobile nav, which is out of space) —
-  // a vertical sidebar has room, and it makes the feature discoverable to
-  // desktop users who never see the Expenses page's summary card.
-  { id: 'subscriptions',    label: 'Subscriptions', icon: Repeat,   href: '/subscriptions'    },
   { id: 'tax-copilot',      label: 'Tax Copilot', icon: Sparkles,   href: '/tax-copilot'      },
   { id: 'udhar-tracker',    label: 'Lendr',      icon: HandCoins,   href: '/udhar-tracker'    },
   { id: 'recall',           label: 'Recall',     icon: Archive,     href: '/recall'           },
@@ -33,7 +28,6 @@ const ROUTE_FAMILIES: Record<string, string[]> = {
   '/dashboard': ['/dashboard', '/track-savings', '/income-setup'],
   '/budget':    ['/budget'],
   '/expenses':  ['/expenses'],
-  '/subscriptions': ['/subscriptions'],
   '/tax-copilot': [
     '/tax-copilot', '/tax-optimization', '/tax-assistant',
     '/tax-planner-ai', '/tax-calendar',

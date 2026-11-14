@@ -19,6 +19,7 @@ import { ChangePinModal } from "@/components/profile/ChangePinModal";
 import { auth } from "@/integrations/indexeddb/auth";
 import { backupIndexedDB } from "@/integrations/indexeddb/utils/backup";
 import { restoreIndexedDB } from "@/integrations/indexeddb/utils/restore";
+import { readSelectedBackupFile } from "@/integrations/indexeddb/utils/selectedBackup";
 import { useBackupPrompt } from "@/contexts/BackupPromptContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -145,25 +146,8 @@ export const MobileHeader = ({ onOpenNotifications, onOpenAssistantSettings }: M
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      toast({
-        title: "No file selected",
-        description: "Please select a JSON backup file.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const isCSV  = file.name.endsWith(".csv");
-    const isJSON = file.type === "application/json" || file.name.endsWith(".json");
-    if (!isCSV && !isJSON) {
-      toast({
-        title: "Invalid file type",
-        description: "Please select a JSON or CSV backup file.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!file) return;
+    event.target.value = "";
 
     if (!user) {
       toast({
@@ -174,25 +158,21 @@ export const MobileHeader = ({ onOpenNotifications, onOpenAssistantSettings }: M
       return;
     }
 
-    // CSV restore — for already logged-in users.
-    // `parseCSVBackup` leaves `csvData.profile` null by design; only
-    // `validateCSVOwnership` assigns it. Checking `.profile` here is what made
-    // every in-app CSV import fail with "No profile found in CSV backup."
-    // We now run the same ownership check CSVImportScreen does, against the
-    // signed-in account rather than a typed-in email.
-    if (isCSV) {
-      try {
-        const { parseCSVBackup, validateCSVOwnership, importCSVToIndexedDB } =
-          await import("@/integrations/indexeddb/utils/csvRestore");
-        const text    = await file.text();
-        const csvData = parseCSVBackup(text);
+    try {
+      // Select first, inspect second. Android providers often label CSV files
+      // as text/plain or application/octet-stream, so neither MIME nor the
+      // filename is used to decide whether the backup is valid.
+      const selected = await readSelectedBackupFile(file);
 
+      if (selected.kind === 'csv') {
+        const { validateCSVOwnership, importCSVToIndexedDB } =
+          await import("@/integrations/indexeddb/utils/csvRestore");
         const { valid, error: ownershipError } = await validateCSVOwnership(
-          csvData, user.email ?? "", user.phone ?? ""
+          selected.data, user.email ?? "", user.phone ?? ""
         );
         if (!valid) throw new Error(ownershipError ?? "This backup does not belong to this account.");
 
-        const { imported, skipped } = await importCSVToIndexedDB(user.id, csvData);
+        const { imported, skipped } = await importCSVToIndexedDB(user.id, selected.data);
         const skippedCount = Object.values(skipped).reduce((a, b) => a + b, 0);
 
         await refreshUser();
@@ -205,58 +185,41 @@ export const MobileHeader = ({ onOpenNotifications, onOpenAssistantSettings }: M
             ? `${imported} records restored. ${skippedCount} record${skippedCount === 1 ? "" : "s"} could not be imported.`
             : `${imported} records restored from backup.`,
         });
-      } catch (error: any) {
-        toast({ title: "CSV Import Failed", description: error.message || "Could not import CSV.", variant: "destructive" });
-      } finally {
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
       }
-      return;
+
+      toast({
+        title: "Importing data...",
+        description: "Please wait while your data is being restored.",
+        duration: 5000,
+      });
+
+      await restoreIndexedDB(user.id, selected.data);
+      await refreshUser();
+      recordBackupPerformed();
+
+      queryClient.invalidateQueries({ queryKey: ['investmentSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsGoals'] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyTransactionsForSavings'] });
+      queryClient.invalidateQueries({ queryKey: ['quickActionsWeeklySummary'] });
+      queryClient.invalidateQueries({ queryKey: ['weeklyBudgetProjections'] });
+      queryClient.invalidateQueries({ queryKey: ['monthlyBudgetSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['activeNotifications'] });
+      queryClient.invalidateQueries({ queryKey: ['seenNotificationIds'] });
+
+      toast({
+        title: "Import Successful",
+        description: "Your data has been restored successfully!",
+      });
+    } catch (error: any) {
+      console.error('Error importing data:', error);
+      toast({
+        title: "Import Failed",
+        description: error.message || "The selected file is not a valid Acounted backup.",
+        variant: "destructive",
+      });
     }
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const content = e.target?.result as string;
-        const backupData = JSON.parse(content);
-
-        toast({
-          title: "Importing data...",
-          description: "Please wait while your data is being restored.",
-          duration: 5000,
-        });
-
-        await restoreIndexedDB(user.id, backupData);
-        await refreshUser();
-        recordBackupPerformed();
-
-        queryClient.invalidateQueries({ queryKey: ['investmentSummary'] });
-        queryClient.invalidateQueries({ queryKey: ['savingsGoals'] });
-        queryClient.invalidateQueries({ queryKey: ['monthlyTransactionsForSavings'] });
-        queryClient.invalidateQueries({ queryKey: ['quickActionsWeeklySummary'] });
-        queryClient.invalidateQueries({ queryKey: ['weeklyBudgetProjections'] });
-        queryClient.invalidateQueries({ queryKey: ['monthlyBudgetSummary'] });
-        queryClient.invalidateQueries({ queryKey: ['recentTransactions'] });
-        queryClient.invalidateQueries({ queryKey: ['activeNotifications'] });
-        queryClient.invalidateQueries({ queryKey: ['seenNotificationIds'] });
-
-        toast({
-          title: "Import Successful",
-          description: "Your data has been restored successfully!",
-        });
-      } catch (error: any) {
-        console.error('Error importing data:', error);
-        toast({
-          title: "Import Failed",
-          description: error.message || "Could not import your data. Please ensure it's a valid backup file.",
-          variant: "destructive",
-        });
-      } finally {
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    };
-    reader.readAsText(file);
   };
 
   const displayName = loadingProfile
@@ -415,7 +378,6 @@ export const MobileHeader = ({ onOpenNotifications, onOpenAssistantSettings }: M
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".json,.csv"
         style={{ display: 'none' }}
       />
     </div>
