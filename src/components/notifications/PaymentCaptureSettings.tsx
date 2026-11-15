@@ -10,6 +10,7 @@ import {
   listPendingPayments,
   openPaymentNotificationAccess,
   paymentCaptureAvailable,
+  requestPaymentSmsPermission,
   skipPendingPayment,
   snoozePendingPayment,
   SUPPORTED_PAYMENT_APPS,
@@ -25,7 +26,11 @@ const EMPTY_STATUS: PaymentCaptureStatus = {
   enabled: false,
   notificationAccessGranted: false,
   notificationsGranted: false,
+  smsGranted: false,
   pendingCount: 0,
+  lastEventAt: 0,
+  lastEventSource: '',
+  lastEventResult: '',
 };
 
 export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps) {
@@ -67,6 +72,15 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
       await refresh();
     } catch (error) {
       console.warn('[PaymentCapture] Could not request notifications', error);
+    }
+  };
+
+  const requestSmsPermission = async () => {
+    try {
+      await requestPaymentSmsPermission();
+      await refresh();
+    } catch (error) {
+      console.warn('[PaymentCapture] Could not request SMS access', error);
     }
   };
 
@@ -115,6 +129,12 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
                 : <ShieldCheck className="h-4 w-4 text-amber-600" />}
               <span>{status.notificationAccessGranted ? 'Payment notification access is active' : 'Android notification access is still needed'}</span>
             </div>
+            <div className="flex items-center gap-2 text-xs">
+              {status.smsGranted
+                ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                : <ShieldCheck className="h-4 w-4 text-amber-600" />}
+              <span>{status.smsGranted ? 'Transaction SMS capture is active' : 'SMS access is still needed'}</span>
+            </div>
             {!status.notificationAccessGranted && (
               <Button size="sm" className="w-full" onClick={() => void openPaymentNotificationAccess()}>
                 Allow payment notification access
@@ -126,6 +146,18 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
                 <Button size="sm" variant="outline" className="w-full" onClick={() => void requestNotificationPermission()}>
                   Allow Acounted notifications
                 </Button>
+              </div>
+            )}
+            {!status.smsGranted && (
+              <Button size="sm" variant="outline" className="w-full" onClick={() => void requestSmsPermission()}>
+                Allow transaction SMS access
+              </Button>
+            )}
+            {status.lastEventAt > 0 && (
+              <div className="rounded-lg border border-border/40 bg-background/60 px-2.5 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Last capture check</p>
+                <p className="mt-0.5 text-[11px] font-semibold text-foreground">{status.lastEventResult}</p>
+                <p className="text-[10px] text-muted-foreground">{status.lastEventSource} · {new Date(status.lastEventAt).toLocaleString()}</p>
               </div>
             )}
             <button type="button" onClick={() => void refresh()} className="flex items-center gap-1 text-[11px] font-semibold text-primary">
@@ -141,6 +173,7 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
                 {app}
               </span>
             ))}
+            <span className="rounded-full border border-border/50 bg-muted/40 px-2 py-1 text-[10px] font-semibold text-foreground/80">Bank transaction SMS</span>
           </div>
         </div>
       </div>
@@ -183,7 +216,7 @@ export function PaymentCaptureSettings({ onClose }: PaymentCaptureSettingsProps)
       </div>
 
       <p className="text-[10px] leading-relaxed text-muted-foreground">
-        Private by design: automatic capture stays on, but Android requires you to grant Notification Access once. Acounted checks only supported payment apps and stores the extracted app, amount, merchant, reference and time on this phone. It does not read SMS, watch the screen, or upload this data.
+        Private by design: automatic capture stays on, but Android requires Notification Access and SMS permission once. Acounted immediately discards OTPs, personal messages and non-payment notifications. Only extracted payment details stay on this phone; raw messages are never stored or uploaded.
       </p>
     </div>
   );

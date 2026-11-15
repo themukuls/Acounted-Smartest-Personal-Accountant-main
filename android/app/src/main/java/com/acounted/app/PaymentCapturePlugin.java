@@ -1,5 +1,6 @@
 package com.acounted.app;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.provider.Settings;
@@ -11,14 +12,22 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-@CapacitorPlugin(name = "PaymentCapture")
+@CapacitorPlugin(
+    name = "PaymentCapture",
+    permissions = @Permission(strings = { Manifest.permission.RECEIVE_SMS }, alias = PaymentCapturePlugin.SMS_PERMISSION)
+)
 public class PaymentCapturePlugin extends Plugin {
+    static final String SMS_PERMISSION = "sms";
+
     @PluginMethod
     public void getStatus(PluginCall call) {
         PendingPaymentStore store = new PendingPaymentStore(getContext());
@@ -26,7 +35,31 @@ public class PaymentCapturePlugin extends Plugin {
         result.put("enabled", true);
         result.put("notificationAccessGranted", hasNotificationAccess());
         result.put("notificationsGranted", NotificationManagerCompat.from(getContext()).areNotificationsEnabled());
+        result.put("smsGranted", getPermissionState(SMS_PERMISSION) == PermissionState.GRANTED);
         result.put("pendingCount", store.list().length());
+        result.put("lastEventAt", store.lastEventAt());
+        result.put("lastEventSource", store.lastEventSource());
+        result.put("lastEventResult", store.lastEventResult());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestSmsPermission(PluginCall call) {
+        if (getPermissionState(SMS_PERMISSION) == PermissionState.GRANTED) {
+            resolveSmsPermission(call);
+        } else {
+            requestPermissionForAlias(SMS_PERMISSION, call, "smsPermissionCallback");
+        }
+    }
+
+    @PermissionCallback
+    private void smsPermissionCallback(PluginCall call) {
+        resolveSmsPermission(call);
+    }
+
+    private void resolveSmsPermission(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("granted", getPermissionState(SMS_PERMISSION) == PermissionState.GRANTED);
         call.resolve(result);
     }
 

@@ -11,7 +11,8 @@ public class PaymentAppNotificationListener extends NotificationListenerService 
     @Override
     public void onNotificationPosted(StatusBarNotification notification) {
         PendingPaymentStore store = new PendingPaymentStore(this);
-        if (notification == null || !PaymentAppRegistry.supports(notification.getPackageName())) return;
+        if (notification == null) return;
+        boolean supportedPaymentApp = PaymentAppRegistry.supports(notification.getPackageName());
 
         Notification value = notification.getNotification();
         Bundle extras = value == null ? null : value.extras;
@@ -28,10 +29,19 @@ public class PaymentAppNotificationListener extends NotificationListenerService 
         PaymentNotificationParser.ParsedPayment parsed = PaymentNotificationParser.parse(
             notification.getPackageName(), title, body.toString(), notification.getPostTime()
         );
-        if (parsed == null) return;
+        if (parsed == null) {
+            // Do not let unrelated apps overwrite useful diagnostics; for the
+            // known payment apps, an ignored event is actionable information.
+            if (supportedPaymentApp) store.recordEvent("App notification", "Ignored: payment wording not recognised");
+            return;
+        }
 
         JSONObject pending = store.add(parsed);
-        if (pending == null) return;
+        if (pending == null) {
+            store.recordEvent("App notification", "Ignored: duplicate payment");
+            return;
+        }
+        store.recordEvent("App notification", "Captured payment");
         PaymentNotificationHelper.show(this, pending, false);
         long remindAt = PaymentNotificationHelper.nextReminderTime();
         store.snooze(pending.optString("id"), remindAt);

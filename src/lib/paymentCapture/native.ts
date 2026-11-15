@@ -17,12 +17,17 @@ export interface PaymentCaptureStatus {
   enabled: boolean;
   notificationAccessGranted: boolean;
   notificationsGranted: boolean;
+  smsGranted: boolean;
   pendingCount: number;
+  lastEventAt: number;
+  lastEventSource: string;
+  lastEventResult: string;
 }
 
 interface PaymentCapturePlugin {
   getStatus(): Promise<PaymentCaptureStatus>;
   setEnabled(options: { enabled: boolean }): Promise<void>;
+  requestSmsPermission(): Promise<{ granted: boolean }>;
   openNotificationAccessSettings(): Promise<void>;
   listPending(): Promise<{ payments: PendingPayment[] }>;
   getPending(options: { id: string }): Promise<{ payment: PendingPayment | null }>;
@@ -49,12 +54,13 @@ export const paymentCaptureAvailable = () => Capacitor.isNativePlatform() && Cap
 
 export const getPaymentCaptureStatus = async (): Promise<PaymentCaptureStatus> => {
   if (!paymentCaptureAvailable()) {
-    return { enabled: false, notificationAccessGranted: false, notificationsGranted: false, pendingCount: 0 };
+    return { enabled: false, notificationAccessGranted: false, notificationsGranted: false, smsGranted: false, pendingCount: 0, lastEventAt: 0, lastEventSource: '', lastEventResult: '' };
   }
   return NativePaymentCapture.getStatus();
 };
 
 export const setPaymentCaptureEnabled = (enabled: boolean) => NativePaymentCapture.setEnabled({ enabled });
+export const requestPaymentSmsPermission = async () => (await NativePaymentCapture.requestSmsPermission()).granted;
 export const openPaymentNotificationAccess = () => NativePaymentCapture.openNotificationAccessSettings();
 export const listPendingPayments = async () => (await NativePaymentCapture.listPending()).payments;
 export const getPendingPayment = async (id: string) => (await NativePaymentCapture.getPending({ id })).payment;

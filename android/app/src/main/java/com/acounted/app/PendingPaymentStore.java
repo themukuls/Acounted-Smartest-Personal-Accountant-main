@@ -14,6 +14,9 @@ final class PendingPaymentStore {
     private static final String ENABLED = "enabled";
     private static final String ITEMS = "pending_items";
     private static final String SEEN = "seen_items";
+    private static final String LAST_EVENT_AT = "last_event_at";
+    private static final String LAST_EVENT_SOURCE = "last_event_source";
+    private static final String LAST_EVENT_RESULT = "last_event_result";
     private static final int MAX_PENDING = 100;
     private static final int MAX_SEEN = 300;
 
@@ -41,7 +44,8 @@ final class PendingPaymentStore {
     synchronized JSONObject add(PaymentNotificationParser.ParsedPayment payment) {
         try {
             JSONArray items = readArray(ITEMS);
-            if (containsDedupe(items, payment.dedupeKey) || containsDedupe(readArray(SEEN), payment.dedupeKey)) {
+            if (containsDedupe(items, payment.dedupeKey) || containsDedupe(readArray(SEEN), payment.dedupeKey)
+                    || containsLikelyDuplicate(items, payment)) {
                 return null;
             }
 
@@ -67,6 +71,18 @@ final class PendingPaymentStore {
             return null;
         }
     }
+
+    synchronized void recordEvent(String source, String result) {
+        preferences.edit()
+            .putLong(LAST_EVENT_AT, System.currentTimeMillis())
+            .putString(LAST_EVENT_SOURCE, source)
+            .putString(LAST_EVENT_RESULT, result)
+            .apply();
+    }
+
+    synchronized long lastEventAt() { return preferences.getLong(LAST_EVENT_AT, 0L); }
+    synchronized String lastEventSource() { return preferences.getString(LAST_EVENT_SOURCE, ""); }
+    synchronized String lastEventResult() { return preferences.getString(LAST_EVENT_RESULT, ""); }
 
     synchronized JSONArray list() {
         JSONArray stored = readArray(ITEMS);
@@ -155,6 +171,20 @@ final class PendingPaymentStore {
         for (int i = 0; i < array.length(); i++) {
             JSONObject item = array.optJSONObject(i);
             if (item != null && key.equals(item.optString("dedupeKey"))) return true;
+        }
+        return false;
+    }
+
+    private boolean containsLikelyDuplicate(JSONArray array, PaymentNotificationParser.ParsedPayment payment) {
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject item = array.optJSONObject(i);
+            if (item == null || !payment.amount.equals(item.optString("amount"))) continue;
+            if (Math.abs(payment.occurredAt - item.optLong("occurredAt")) > 120_000L) continue;
+            String existingRef = item.optString("reference", "");
+            if (payment.reference != null && payment.reference.equalsIgnoreCase(existingRef)) return true;
+            String existingMerchant = item.optString("merchant", "").trim();
+            String merchant = payment.merchant == null ? "" : payment.merchant.trim();
+            if (merchant.isEmpty() || existingMerchant.isEmpty() || merchant.equalsIgnoreCase(existingMerchant)) return true;
         }
         return false;
     }

@@ -3,6 +3,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   getPaymentCaptureStatus,
   paymentCaptureAvailable,
+  requestPaymentSmsPermission,
   setPaymentCaptureEnabled,
 } from '@/lib/paymentCapture/native';
 
@@ -19,6 +20,7 @@ export function useAlwaysOnPaymentCapture(): void {
     const initialise = async () => {
       try {
         await setPaymentCaptureEnabled(true);
+        await requestPaymentSmsPermission();
         const permission = await LocalNotifications.checkPermissions();
         if (active && (permission.display === 'prompt' || permission.display === 'prompt-with-rationale')) {
           await LocalNotifications.requestPermissions();
