@@ -7,9 +7,15 @@ export function usePendingPayments() {
   const [payments, setPayments] = useState<PendingPayment[]>([]);
 
   const refresh = useCallback(async () => {
-    if (!available) { setPayments([]); return; }
-    try { setPayments(await listPendingPayments()); }
-    catch (error) { console.warn('[PaymentCapture] Could not load pending payments', error); }
+    if (!available) { setPayments([]); return [] as PendingPayment[]; }
+    try {
+      const next = await listPendingPayments();
+      setPayments(next);
+      return next;
+    } catch (error) {
+      console.warn('[PaymentCapture] Could not load pending payments', error);
+      return [] as PendingPayment[];
+    }
   }, [available]);
 
   useEffect(() => {

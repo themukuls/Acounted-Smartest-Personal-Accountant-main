@@ -532,6 +532,20 @@ export const BACKUP_SECTIONS: Section[] = [
       bool(r.is_completed), str(r.notes), fmtTimestamp(r.updated_at),
     ],
   },
+  {
+    name: 'payment_merchant_mappings',
+    store: 'payment_merchant_mappings',
+    columns: [
+      'id', 'user_id', 'merchant_key', 'display_name', 'source_package',
+      'category', 'account', 'note', 'confirmations', 'last_amount',
+      'created_at', 'updated_at',
+    ],
+    encode: r => [
+      str(r.id), str(r.user_id), str(r.merchant_key), str(r.display_name), str(r.source_package),
+      str(r.category), str(r.account), str(r.note), num(r.confirmations), num(r.last_amount),
+      fmtTimestamp(r.created_at), fmtTimestamp(r.updated_at),
+    ],
+  },
 ];
 
 // ─── Assembly ────────────────────────────────────────────────────────────────

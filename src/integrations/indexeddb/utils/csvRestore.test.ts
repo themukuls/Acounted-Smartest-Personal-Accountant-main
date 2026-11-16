@@ -252,6 +252,21 @@ describe('unknown sections', () => {
   });
 });
 
+describe('payment merchant memory', () => {
+  test('restores remembered category defaults from a backup section', () => {
+    const csv = FIXTURE +
+      'section,payment_merchant_mappings\n' +
+      'columns,id,user_id,merchant_key,display_name,source_package,category,account,note,confirmations,last_amount,created_at,updated_at\n' +
+      'PAYMENT_MERCHANT_MAPPINGS,u1::vpa::78***@ybl,u1,vpa::78***@ybl,Office Canteen,net.one97.paytm,food,upi,Lunch,2,141,2026-11-15 10:00,2026-11-16 10:00\n\n';
+
+    const [mapping] = parseCSVBackup(csv).paymentMerchantMappingRows;
+    expect(mapping.merchant_key).toBe('vpa::78***@ybl');
+    expect(mapping.category).toBe('food');
+    expect(mapping.account).toBe('upi');
+    expect(mapping.confirmations).toBe(2);
+  });
+});
+
 // ── 7. Record-aware parsing ──────────────────────────────────────────────────
 
 describe('record-aware parser', () => {

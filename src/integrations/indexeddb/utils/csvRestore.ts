@@ -185,6 +185,7 @@ export interface CSVBackupData {
   salaryRestructuringRows:  SalaryRestructuringCSVRow[];
   tdsEntryRows:             TdsEntryCSVRow[];
   itrChecklistRows:         ItrChecklistCSVRow[];
+  paymentMerchantMappingRows: PaymentMerchantMappingCSVRow[];
 
   /**
    * Rows this reader did not recognise, keyed by section name. Never silently
@@ -535,6 +536,21 @@ export interface ItrChecklistCSVRow {
   updated_at:     string;
 }
 
+export interface PaymentMerchantMappingCSVRow {
+  id:             string;
+  user_id:        string;
+  merchant_key:   string;
+  display_name:   string;
+  source_package: string;
+  category:       string;
+  account:        string;
+  note:           string;
+  confirmations:  number;
+  last_amount:    number;
+  created_at:     string;
+  updated_at:     string;
+}
+
 // ─── Field access ─────────────────────────────────────────────────────────────
 /**
  * A field reader for one data row.
@@ -586,6 +602,7 @@ function emptyBackupData(): CSVBackupData {
     salaryRestructuringRows: [],
     tdsEntryRows:            [],
     itrChecklistRows:        [],
+    paymentMerchantMappingRows: [],
     skipped:                 {},
     profile:                 null,
     // backward compat aliases
@@ -1037,6 +1054,24 @@ export function parseCSVBackup(csvText: string): CSVBackupData {
         break;
       }
 
+      case 'payment_merchant_mappings': {
+        result.paymentMerchantMappingRows.push({
+          id:             safeStr(g('id', 1)) || uuidv4(),
+          user_id:        safeStr(g('user_id', 2)),
+          merchant_key:   safeStr(g('merchant_key', 3)),
+          display_name:   safeStr(g('display_name', 4)),
+          source_package: safeStr(g('source_package', 5)),
+          category:       safeStr(g('category', 6)),
+          account:        safeStr(g('account', 7)),
+          note:           safeStr(g('note', 8)),
+          confirmations:  safeInt(g('confirmations', 9)),
+          last_amount:    safeFloat(g('last_amount', 10)),
+          created_at:     safeDate(g('created_at', 11)),
+          updated_at:     safeDate(g('updated_at', 12)),
+        });
+        break;
+      }
+
       // Anything else is COUNTED, never dropped on the floor.
       default:
         result.skipped[section] = (result.skipped[section] ?? 0) + 1;
@@ -1055,6 +1090,7 @@ const KNOWN_BACKUP_SECTIONS = new Set([
   'ai_tax_planner_input', 'ai_tax_planner_output', 'advance_tax_payments',
   'capital_gains_entries', 'tax_calendar_state', 'salary_restructuring',
   'tds_entries', 'itr_checklist',
+  'payment_merchant_mappings',
 ]);
 
 /**
@@ -1461,6 +1497,21 @@ export async function importCSVToIndexedDB(
     category:       r.category,
     is_completed:   r.is_completed,
     notes:          r.notes,
+    updated_at:     r.updated_at || now,
+  }));
+
+  await replaceStore('payment_merchant_mappings', csvData.paymentMerchantMappingRows, r => ({
+    id:             r.id,
+    user_id:        userId,
+    merchant_key:   r.merchant_key,
+    display_name:   r.display_name,
+    source_package: r.source_package,
+    category:       r.category,
+    account:        r.account || 'upi',
+    note:           r.note,
+    confirmations:  r.confirmations || 1,
+    last_amount:    r.last_amount,
+    created_at:     r.created_at || now,
     updated_at:     r.updated_at || now,
   }));
 

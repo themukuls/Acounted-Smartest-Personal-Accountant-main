@@ -16,6 +16,7 @@ import { PaymentReconciliationBanner } from "@/components/paymentCapture/Payment
 import { PaymentReconciliationSheet } from "@/components/paymentCapture/PaymentReconciliationSheet";
 import { usePendingPayments } from "@/hooks/usePendingPayments";
 import { completePendingPayment, skipPendingPayment, type PendingPayment } from "@/lib/paymentCapture/native";
+import { nextPendingPayment, reconciliationProgress } from "@/lib/paymentCapture/reconciliation";
 import { findPaymentMerchantMapping, rememberPaymentMerchantMapping, type PaymentMerchantMapping } from "@/integrations/indexeddb/services/paymentMerchantService";
 import { cn } from "@/lib/utils";
 import { format, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameWeek } from "date-fns";
@@ -66,6 +67,7 @@ const Expenses = () => {
   const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [showReconciliation, setShowReconciliation] = useState(false);
   const [reviewingPayment, setReviewingPayment] = useState<PendingPayment | null>(null);
+  const [reviewSessionTotal, setReviewSessionTotal] = useState(0);
   const [paymentMappings, setPaymentMappings] = useState<Record<string, PaymentMerchantMapping | null>>({});
   const { payments: pendingPayments, refresh: refreshPendingPayments } = usePendingPayments();
 
@@ -80,6 +82,36 @@ const Expenses = () => {
       .then(entries => { if (active) setPaymentMappings(Object.fromEntries(entries)); });
     return () => { active = false; };
   }, [user, pendingPayments]);
+
+  const openPaymentReview = async (payment: PendingPayment, startSession = false) => {
+    if (!user) return;
+    const mapping = await findPaymentMerchantMapping(user.id, payment);
+    setPaymentMappings(previous => ({ ...previous, [payment.id]: mapping }));
+    if (startSession) setReviewSessionTotal(Math.max(1, pendingPayments.length));
+    setReviewingPayment(payment);
+    setEditingTransaction(null);
+    setFormDialogType('expense');
+    setShowReconciliation(false);
+    setShowTransactionFormDialog(true);
+  };
+
+  const advancePaymentReview = async (resolvedPaymentId: string): Promise<boolean> => {
+    const remaining = (await refreshPendingPayments()).filter(payment => payment.id !== resolvedPaymentId);
+    const next = nextPendingPayment(remaining, resolvedPaymentId);
+    if (!next) {
+      setReviewingPayment(null);
+      setShowTransactionFormDialog(false);
+      setReviewSessionTotal(0);
+      toast({ title: 'All caught up', description: 'Every captured payment has been reconciled.' });
+      return false;
+    }
+
+    // If another payment arrived during the session, include it in the total
+    // rather than showing impossible progress such as "11 of 10".
+    setReviewSessionTotal(total => Math.max(total, remaining.length + 1));
+    await openPaymentReview(next);
+    return true;
+  };
 
   // ✅ FIX: removed `selectedMonth` from deps array.
   // Previously, having selectedMonth in deps caused the effect to re-run after
@@ -211,22 +243,23 @@ const Expenses = () => {
         description: DOMPurify.sanitize(data.note || ''),
         transaction_date: dateToUse.toISOString()
       });
+      let continuedReview = false;
       if (reviewingPayment && !data.transactionId) {
-        await rememberPaymentMerchantMapping(user.id, reviewingPayment, {
+        const resolvedPayment = reviewingPayment;
+        await rememberPaymentMerchantMapping(user.id, resolvedPayment, {
           category: data.category,
           account: data.account,
           note: DOMPurify.sanitize(data.note || ''),
         });
-        await completePendingPayment(reviewingPayment.id);
-        setReviewingPayment(null);
-        await refreshPendingPayments();
+        await completePendingPayment(resolvedPayment.id);
+        continuedReview = await advancePaymentReview(resolvedPayment.id);
       }
       toast({
         title: "Success",
         description: `Transaction ${data.transactionId ? 'updated' : 'saved'} successfully`,
       });
       setEditingTransaction(null);
-      setShowTransactionFormDialog(false);
+      if (!continuedReview) setShowTransactionFormDialog(false);
       setSelectedWeekForDialog('');
       await fetchTransactionsAndBudgetDates(activeWeekFilter, selectedMonth);
       
@@ -261,7 +294,7 @@ const Expenses = () => {
       });
       await rememberPaymentMerchantMapping(user.id, payment, mapping);
       await completePendingPayment(payment.id);
-      await refreshPendingPayments();
+      await advancePaymentReview(payment.id);
       await fetchTransactionsAndBudgetDates(activeWeekFilter, selectedMonth);
       queryClient.invalidateQueries({ queryKey: ['quickActionsWeeklySummary'] });
       queryClient.invalidateQueries({ queryKey: ['weeklyBudgetProjections'] });
@@ -276,21 +309,14 @@ const Expenses = () => {
 
   const reviewPayment = (payment: PendingPayment) => {
     if (!guard('canWrite')) return;
-    setReviewingPayment(payment);
-    setEditingTransaction(null);
-    setFormDialogType('expense');
-    setShowReconciliation(false);
-    setShowTransactionFormDialog(true);
+    void openPaymentReview(payment, true);
   };
 
   const skipPayment = async (payment: PendingPayment) => {
     await skipPendingPayment(payment.id);
-    await refreshPendingPayments();
     if (reviewingPayment?.id === payment.id) {
-      setReviewingPayment(null);
-      setShowTransactionFormDialog(false);
-      setShowReconciliation(true);
-    }
+      await advancePaymentReview(payment.id);
+    } else await refreshPendingPayments();
   };
 
   const handleDeleteTransaction = async (transactionId: string, categoryName: string) => {
@@ -853,7 +879,7 @@ const Expenses = () => {
         isOpen={showTransactionFormDialog}
         onClose={() => {
           setShowTransactionFormDialog(false);
-          if (reviewingPayment) { setReviewingPayment(null); setShowReconciliation(true); }
+          if (reviewingPayment) { setReviewingPayment(null); setReviewSessionTotal(0); }
         }}
         onSave={handleSaveTransaction}
         initialData={editingTransaction ? {
@@ -875,8 +901,10 @@ const Expenses = () => {
           category: paymentMappings[reviewingPayment.id]?.category,
           account: paymentMappings[reviewingPayment.id]?.account,
           note: paymentMappings[reviewingPayment.id]?.note,
+          remembered: !!paymentMappings[reviewingPayment.id],
+          progress: reconciliationProgress(reviewSessionTotal, pendingPayments.length),
         } : undefined}
-        onDetectedLater={() => { setShowTransactionFormDialog(false); setReviewingPayment(null); setShowReconciliation(true); }}
+        onDetectedLater={() => { setShowTransactionFormDialog(false); setReviewingPayment(null); setReviewSessionTotal(0); }}
         onDetectedSkip={() => reviewingPayment && void skipPayment(reviewingPayment)}
       />
 

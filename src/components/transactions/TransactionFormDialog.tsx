@@ -53,6 +53,8 @@ interface TransactionFormDialogProps {
     category?: string;
     account?: string;
     note?: string;
+    remembered?: boolean;
+    progress?: { current: number; total: number };
   };
   onDetectedLater?: () => void;
   onDetectedSkip?: () => void;
@@ -624,9 +626,18 @@ export const TransactionFormDialog = ({
 
           {detectedPayment && (
             <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2.5">
-              <p className="text-xs font-bold text-foreground">Detected from {detectedPayment.appName}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold text-foreground">Detected from {detectedPayment.appName}</p>
+                {detectedPayment.progress && (
+                  <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                    {detectedPayment.progress.current} of {detectedPayment.progress.total}
+                  </span>
+                )}
+              </div>
               <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                Amount, time and UPI are prefilled. Please verify them and choose the category before saving.
+                {detectedPayment.remembered
+                  ? 'Category and payment details were remembered from your last confirmed payment to this payee.'
+                  : 'Amount, time and UPI are prefilled. Please verify them and choose the category before saving.'}
               </p>
             </div>
           )}
