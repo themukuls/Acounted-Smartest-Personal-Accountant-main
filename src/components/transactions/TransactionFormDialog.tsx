@@ -27,6 +27,7 @@ import {
   rememberMapping,
 } from '@/integrations/indexeddb/services/learnedTaxMappingsService';
 import { useGate } from '@/components/paywall/useGate';
+import { TAX_FEATURE_ENABLED } from '@/lib/features';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -548,13 +549,13 @@ export const TransactionFormDialog = ({
     setShowCalendar(false);
     setConfirmedBucket(null);
     fetchCategories();
-    if (user) getLearnedMappings(user.id).then(setLearned).catch(() => {});
+    if (TAX_FEATURE_ENABLED && user) getLearnedMappings(user.id).then(setLearned).catch(() => {});
   }, [isOpen, initialData, detectedPayment, propFormType, fetchCategories, user]);
 
   // ── Tax insight (derived, offline classifier — never blocks saving) ─────
   const categoryLabel = allCategories.find(c => c.category_name === formData.category)?.label;
   const taxInsight = useMemo(() => {
-    if (!formData.amount) return null;
+    if (!TAX_FEATURE_ENABLED || !formData.amount) return null;
     const text = [formData.note, categoryLabel].filter(Boolean).join(' ').trim();
     if (!text) return null;
     return classifyEntry(formData.note || '', { hintCategory: categoryLabel, learned });
@@ -587,7 +588,7 @@ export const TransactionFormDialog = ({
     try {
       await onSave({ ...formData, type: currentFormType, transactionId: initialData?.id, transaction_date: selectedDateTime.toISOString() });
       // Remember the tax classification so we don't have to ask again.
-      if (user && effectiveBucketId) {
+      if (TAX_FEATURE_ENABLED && user && effectiveBucketId) {
         const learnText = formData.note?.trim() || categoryLabel || '';
         if (learnText) rememberMapping(user.id, learnText, effectiveBucketId);
       }

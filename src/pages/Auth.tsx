@@ -487,7 +487,7 @@ const SignUpScreen = ({ onSuccess }: { onSuccess: () => void }) => {
           </div>
           <div className="flex items-center gap-2 text-sm text-foreground">
             <span className="text-base">📊</span>
-            <span>Ready to calculate your tax savings</span>
+            <span>Ready to organize your money</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-foreground">
             <span className="text-base">🔒</span>

@@ -236,10 +236,10 @@ const InvestmentInsightsDialog = ({
               <LearnCard
                 icon={<Shield className="h-4 w-4 text-primary" />}
                 bg="bg-primary/5 border-primary/20"
-                title="Tax-Efficient Investing"
-                stat="₹1.5L"
-                statLabel="80C deduction limit"
-                body="ELSS, PPF, and NPS reduce taxable income while growing wealth. See Tax Planning."
+                title="Keep Costs Low"
+                stat="1%"
+                statLabel="fee worth checking"
+                body="Small annual fees compound over time. Compare expense ratios and charges before investing."
               />
               <LearnCard
                 icon={<RefreshCw className="h-4 w-4 text-orange-500" />}

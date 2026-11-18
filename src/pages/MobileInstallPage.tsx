@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ArrowRight, Shield, TrendingUp, Target, Calculator, Users, Lightbulb, Share, Plus, Smartphone, Wallet, Receipt } from "lucide-react";
+import { ArrowRight, Shield, TrendingUp, Target, Users, Lightbulb, Share, Plus, Smartphone, Wallet, Receipt } from "lucide-react";
 import { useDeviceDetection } from "@/hooks/use-device-detection";
 import { useAPKInstall } from "@/contexts/APKInstallContext";
 
@@ -97,7 +97,7 @@ const MobileInstallPage = () => {
                 Your Personal <span className="gradient-text">Accountant</span>, Built for Privacy.
               </h1>
               <p className="text-lg text-muted-foreground max-w-xl">
-                Taxes, budgets, warranties, IOUs — everything about your money, in one place. Stored only on your device. Built for India.
+                Expenses, budgets, warranties, IOUs — everything about your money, in one place. Stored only on your device. Built for India.
               </p>
               <div className="flex gap-4">
                 <Button size="lg" className="bg-gradient-primary text-primary-foreground pointer-events-auto" onClick={handleInstall}>
@@ -118,18 +118,18 @@ const MobileInstallPage = () => {
 
             {/* Bento Grid */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Tax Saved */}
+              {/* Entries tracked */}
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                     <Receipt className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-xs font-medium text-green-700">Tax Saved</span>
+                  <span className="text-xs font-medium text-green-700">Entries Tracked</span>
                 </div>
-                <div className="text-2xl font-bold text-gray-900">₹1,24,000</div>
+                <div className="text-2xl font-bold text-gray-900">1,240</div>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp className="h-3 w-3 text-green-500" />
-                  <span className="text-xs text-green-600">₹24,000 more than last year</span>
+                  <span className="text-xs text-green-600">Always ready to review</span>
                 </div>
               </div>
 
@@ -178,7 +178,7 @@ const MobileInstallPage = () => {
                 <div className="text-2xl font-bold text-gray-900">+12.5%</div>
                 <div className="mt-1 space-y-0.5">
                   <div className="text-xs text-muted-foreground">ELSS Mutual Funds</div>
-                  <div className="text-xs text-green-600 font-medium">Tax-saving instrument</div>
+                  <div className="text-xs text-green-600 font-medium">Long-term growth</div>
                 </div>
               </div>
             </div>
@@ -212,7 +212,7 @@ const MobileInstallPage = () => {
                 <Users className="h-6 w-6 text-primary-foreground" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Built for Every Indian Earner</h3>
-              <p className="text-sm text-muted-foreground">Whether you're salaried, a freelancer, business owner, or investor — Acounted understands your income, your deductions, and your tax situation.</p>
+              <p className="text-sm text-muted-foreground">Whether you're salaried, a freelancer, business owner, or investor — Acounted keeps your income and spending organized.</p>
             </div>
 
             <div className="glass-card p-6 text-center">
@@ -225,10 +225,10 @@ const MobileInstallPage = () => {
 
             <div className="glass-card p-6 text-center">
               <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Calculator className="h-6 w-6 text-primary-foreground" />
+                <Receipt className="h-6 w-6 text-primary-foreground" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Effortless Tax Planning</h3>
-              <p className="text-sm text-muted-foreground">Maximize your tax savings with AI-powered planning and easy filing assistance.</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Automatic Expense Capture</h3>
+              <p className="text-sm text-muted-foreground">Review detected payments quickly, with remembered categories for repeat merchants.</p>
             </div>
           </div>
         </div>

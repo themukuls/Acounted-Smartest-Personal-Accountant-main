@@ -26,6 +26,7 @@ import { useMemo } from 'react';
 import { computeTax } from '@/lib/tax/engine';
 import { inr } from '@/lib/tax/qa';
 import { cn } from '@/lib/utils';
+import { TAX_FEATURE_ENABLED } from '@/lib/features';
 
 /** Shown when screen 5 was skipped. No number, and no pretending there is one. */
 export const EMPTY_STATE_TITLE = 'Nothing to show you yet, honestly';
@@ -43,7 +44,7 @@ interface ValueMomentProps {
 
 export const ValueMoment = ({ monthlyIncome }: ValueMomentProps) => {
   const result = useMemo(() => {
-    if (monthlyIncome === null || !Number.isFinite(monthlyIncome) || monthlyIncome <= 0) {
+    if (!TAX_FEATURE_ENABLED || monthlyIncome === null || !Number.isFinite(monthlyIncome) || monthlyIncome <= 0) {
       return null;
     }
     const annual = Math.round(monthlyIncome * 12);
@@ -58,6 +59,19 @@ export const ValueMoment = ({ monthlyIncome }: ValueMomentProps) => {
       }),
     };
   }, [monthlyIncome]);
+
+  if (!TAX_FEATURE_ENABLED) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+          <p className="text-sm font-bold text-foreground">Your money view is ready</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Acounted will organize captured payments, expenses, budgets and reminders in one private place. You can change your income baseline any time.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (result === null) {
     return (

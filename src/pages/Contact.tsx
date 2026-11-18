@@ -270,7 +270,7 @@ const Contact: React.FC = () => {
                   {
                     icon: Sparkles, color: "text-violet-600", bg: "bg-violet-50",
                     title: "Tips & tricks",
-                    desc: "Weekly money-saving tips, tax hacks, and investment ideas shared by the Acounted team.",
+                    desc: "Weekly money-saving tips, budgeting ideas, and investment guidance shared by the Acounted team.",
                   },
                   {
                     icon: Users, color: "text-blue-600", bg: "bg-blue-50",

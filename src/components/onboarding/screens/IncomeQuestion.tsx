@@ -26,10 +26,13 @@
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TAX_FEATURE_ENABLED } from '@/lib/features';
 
 /** Sits directly above the field. The reason, at the moment of asking. */
 export const WHY_WE_ASK =
-  'Asking because the tax estimate needs one figure to start from, and this is the one it uses. Take-home is fine. A round number is fine.';
+  TAX_FEATURE_ENABLED
+    ? 'Asking because the tax estimate needs one figure to start from, and this is the one it uses. Take-home is fine. A round number is fine.'
+    : 'Asking so your budgets and monthly money view start with a useful baseline. Take-home is fine. A round number is fine.';
 
 /** Sits directly below the field. */
 export const WHERE_IT_GOES =
@@ -37,7 +40,7 @@ export const WHERE_IT_GOES =
 
 /** Shown next to Skip so the skip is a stated option, not a way out. */
 export const SKIP_REASSURANCE =
-  'Skipping costs you nothing — the estimate just fills in later, once there are a few entries to work from.';
+  'Skipping costs you nothing — you can add this later from your profile.';
 
 export const SKIP_LABEL = 'Skip this question';
 export const CONTINUE_LABEL = 'Continue';

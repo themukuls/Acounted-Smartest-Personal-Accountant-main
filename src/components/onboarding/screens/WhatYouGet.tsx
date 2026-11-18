@@ -20,14 +20,20 @@
  */
 
 import { ReceiptIndianRupee, HandCoins, FileDown } from 'lucide-react';
+import { TAX_FEATURE_ENABLED } from '@/lib/features';
 
 export const VALUE_BLOCKS = [
-  {
+  ...(TAX_FEATURE_ENABLED ? [{
     Icon: ReceiptIndianRupee,
     eyebrow: 'Two dates that cost money',
     title: 'The tax suite, running all year instead of every March',
     body: '31 July is the filing deadline. 31 March is the last day 80C counts for this year. Between them Acounted keeps a live estimate of what you owe under both regimes, logs the TDS already cut from your salary, and shows how much of the ₹1.5 lakh 80C limit is still unused — worth up to ₹46,800 at the top slab.',
-  },
+  }] : [{
+    Icon: ReceiptIndianRupee,
+    eyebrow: 'Payments that do not get lost',
+    title: 'Expenses captured and ready to reconcile',
+    body: 'Acounted detects supported payment notifications, prepares the amount and payee, and remembers the category you confirmed last time. You review it once and your ledger stays current.',
+  }]),
   {
     Icon: HandCoins,
     eyebrow: 'The money that never gets written down',
@@ -38,7 +44,7 @@ export const VALUE_BLOCKS = [
     Icon: FileDown,
     eyebrow: 'No lock-in',
     title: 'Every record back out as a file, whenever you want',
-    body: 'One tap writes your whole ledger to CSV — transactions, budgets, udhar, tax entries — into a folder on your device. If you ever stop paying, you keep reading and exporting everything you put in. That does not expire.',
+    body: 'One tap writes your whole ledger to CSV — transactions, budgets and udhar — into a folder on your device. If you ever stop paying, you keep reading and exporting everything you put in. That does not expire.',
   },
 ] as const;
 

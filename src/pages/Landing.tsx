@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Shield, TrendingUp, Target, Calculator, Users, Lightbulb, Wallet, Receipt } from "lucide-react";
+import { ArrowRight, Shield, TrendingUp, Target, Users, Lightbulb, Wallet, Receipt } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, useInView, useMotionValue, useSpring } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
@@ -78,8 +78,7 @@ const BentoCard = ({ children, className, delay = 0 }: {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Landing = () => {
-  // Tax saved count-up
-  const { ref: taxRef, val: taxVal } = useCountUp(124000, 1800);
+  const { ref: entriesRef, val: entriesVal } = useCountUp(1240, 1800);
 
   return (
     <div className="page-safe min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5">
@@ -159,7 +158,7 @@ const Landing = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: "spring", stiffness: 240, damping: 26, delay: 0.34 }}
               >
-                Taxes, salary, savings, investments — all of it, finally making sense.
+                Expenses, salary, savings, investments — all of it, finally making sense.
                 No bank links, no data shared, no guesswork.
                 Just you, your money, and clarity.
               </motion.p>
@@ -192,21 +191,21 @@ const Landing = () => {
             {/* Bento Grid */}
             <div className="grid grid-cols-2 gap-4">
 
-              {/* Tax Saved — count-up */}
+              {/* Entries tracked — count-up */}
               <BentoCard delay={0.2}
                 className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-5 shadow-sm cursor-default">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                     <Receipt className="h-4 w-4 text-green-600" />
                   </div>
-                  <span className="text-xs font-medium text-green-700">Tax Saved</span>
+                  <span className="text-xs font-medium text-green-700">Entries Tracked</span>
                 </div>
-                <div ref={taxRef} className="text-2xl font-bold text-gray-900">
-                  ₹{taxVal.toLocaleString("en-IN")}
+                <div ref={entriesRef} className="text-2xl font-bold text-gray-900">
+                  {entriesVal.toLocaleString("en-IN")}
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp className="h-3 w-3 text-green-500 shrink-0" />
-                  <span className="text-xs text-green-600">₹24,000 more than last year</span>
+                  <span className="text-xs text-green-600">Always ready to review</span>
                 </div>
               </BentoCard>
 
@@ -268,7 +267,7 @@ const Landing = () => {
                 <div className="text-2xl font-bold text-gray-900">+12.5%</div>
                 <div className="mt-1 space-y-0.5">
                   <div className="text-xs text-muted-foreground">ELSS Mutual Funds</div>
-                  <div className="text-xs text-green-600 font-medium">Tax-saving instrument</div>
+                  <div className="text-xs text-green-600 font-medium">Long-term growth</div>
                 </div>
               </BentoCard>
 
@@ -293,9 +292,9 @@ const Landing = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               { icon: Shield,     delay: 0.0, title: "Privacy-First Design",         body: "Your financial data is stored locally on your device, never tracked or shared." },
-              { icon: Users,      delay: 0.1, title: "Built for Every Indian Earner", body: "Whether you're salaried, a freelancer, business owner, or investor — Acounted understands your income, your deductions, and your tax situation." },
+              { icon: Users,      delay: 0.1, title: "Built for Every Indian Earner", body: "Whether you're salaried, a freelancer, business owner, or investor — Acounted keeps your income and spending organized." },
               { icon: Lightbulb,  delay: 0.2, title: "Personalized AI Insights",     body: "Get smart recommendations for budgeting, savings, and investments, tailored just for you." },
-              { icon: Calculator, delay: 0.3, title: "Effortless Tax Planning",       body: "Maximize your tax savings with AI-powered planning and easy filing assistance." },
+              { icon: Receipt,    delay: 0.3, title: "Automatic Expense Capture",     body: "Review detected payments quickly, with remembered categories for repeat merchants." },
             ].map(({ icon: Icon, delay, title, body }) => (
               <Reveal key={title} delay={delay}>
                 <motion.div

@@ -16,6 +16,7 @@ import { PWAInstallHandler } from "@/components/pwa/PWAInstallHandler";
 import { APKInstallHandler } from "@/components/apk/APKInstallHandler";
 import { useDeviceDetection } from "@/hooks/use-device-detection";
 import { isNative } from "@/lib/platform";
+import { TAX_FEATURE_ENABLED } from "@/lib/features";
 import { AppPreloader } from "@/components/loader/AppPreloader";
 import { App as CapacitorApp } from "@capacitor/app";
 import { StatusBar, Style } from "@capacitor/status-bar";
@@ -257,21 +258,21 @@ function AppContent() {
       {/* Tax Copilot — the merged chat + tax hub. The two old routes redirect
           so existing bookmarks and installed PWA shortcuts keep working. */}
       <Route path="/tax-copilot" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <TaxCopilot />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
-      <Route path="/tax-optimization" element={<Navigate to="/tax-copilot" replace />} />
-      <Route path="/tax-assistant" element={<Navigate to="/tax-copilot" replace />} />
+      <Route path="/tax-optimization" element={<Navigate to={TAX_FEATURE_ENABLED ? "/tax-copilot" : "/dashboard"} replace />} />
+      <Route path="/tax-assistant" element={<Navigate to={TAX_FEATURE_ENABLED ? "/tax-copilot" : "/dashboard"} replace />} />
       <Route path="/budget" element={
         <ProtectedRoute>
           <Budget />
         </ProtectedRoute>
       } />
       <Route path="/tax-planner-ai" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <TaxPlannerAI />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
       <Route path="/udhar-tracker" element={
         <ProtectedRoute>
@@ -284,34 +285,39 @@ function AppContent() {
         </ProtectedRoute>
       } />
       <Route path="/tax-calendar" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <TaxCalendar />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
       <Route path="/advance-tax" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <AdvanceTax />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
       <Route path="/capital-gains" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <CapitalGains />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
+      } />
+      <Route path="/tds-tracker" element={
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
+          <TDSTracker />
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
       <Route path="/tax-compliance" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <TaxCompliance />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
       <Route path="/salary-restructuring" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <SalaryRestructuring />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
       <Route path="/itr-readiness" element={
-        <ProtectedRoute>
+        TAX_FEATURE_ENABLED ? <ProtectedRoute>
           <ITRReadiness />
-        </ProtectedRoute>
+        </ProtectedRoute> : <Navigate to="/dashboard" replace />
       } />
       <Route path="/recall" element={
         <ProtectedRoute>

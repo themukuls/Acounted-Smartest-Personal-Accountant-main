@@ -28,7 +28,7 @@ export interface PaywallScreenProps {
 
 const INCLUDED = [
   'Log and edit income and expenses',
-  'Tax copilot, regime comparison and ITR draft',
+  'Automatic payment capture and expense reconciliation',
   'Voice quick-add, search and subscription detection',
   'Read and export your records even after access ends',
 ];
@@ -162,7 +162,7 @@ export const PaywallScreen = ({
           <p className="text-sm leading-relaxed text-muted-foreground">
             {lapsed
               ? snapshot.trialSource === 'local'
-                ? 'Your free trial ended. Your records remain available; subscribe to unlock adding, search, voice and the tax copilot.'
+                ? 'Your free trial ended. Your records remain available; subscribe to unlock adding, search, voice and automatic capture.'
                 : 'Your paid access ended. Your records remain available; choose a plan to unlock Pro actions again.'
               : `Subscribe through Google Play now, or continue with a one-time ${LOCAL_TRIAL_DAYS}-day trial without adding a payment method.`}
           </p>

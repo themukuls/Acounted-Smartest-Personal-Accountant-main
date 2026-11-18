@@ -2,14 +2,15 @@ import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import {
-  CreditCard, Target, Calculator, HandCoins, Home, Archive, Sparkles,
+  CreditCard, Target, HandCoins, Home, Archive, Sparkles,
 } from "lucide-react";
+import { TAX_FEATURE_ENABLED } from "@/lib/features";
 
 const NAV_ITEMS = [
   { id: "home",          label: "Home",     icon: Home,       href: "/dashboard"       },
   { id: "expenses",      label: "Expenses", icon: CreditCard, href: "/expenses"        },
   { id: "budget",        label: "Budget",   icon: Target,     href: "/budget"          },
-  { id: "tax-copilot",   label: "Tax",      icon: Sparkles,   href: "/tax-copilot"     },
+  ...(TAX_FEATURE_ENABLED ? [{ id: "tax-copilot", label: "Tax", icon: Sparkles, href: "/tax-copilot" }] : []),
   { id: "udhar-tracker", label: "Lendr",    icon: HandCoins,  href: "/udhar-tracker"   },
   { id: "recall",        label: "Recall",   icon: Archive,    href: "/recall"          },
 ];
@@ -27,12 +28,12 @@ export const MobileBottomNav = () => {
     "/budget": [
       "/budget",
     ],
-    "/tax-copilot": [
+    ...(TAX_FEATURE_ENABLED ? { "/tax-copilot": [
       "/tax-copilot", "/tax-optimization", "/tax-assistant",
       "/tax-planner-ai", "/tax-calendar",
       "/advance-tax", "/capital-gains",
       "/salary-restructuring", "/itr-readiness", "/tax-compliance",
-    ],
+    ] } : {}),
     "/udhar-tracker": [
       "/udhar-tracker",
     ],

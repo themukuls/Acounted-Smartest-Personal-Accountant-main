@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Calculator,
   PiggyBank,
   CreditCard,
   Target,
@@ -11,12 +10,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import { NotificationBadge } from "@/components/notifications/NotificationBadge";
+import { TAX_FEATURE_ENABLED } from "@/lib/features";
 
 const navigationItems = [
   { id: 'track-savings',    label: 'Dashboard',  icon: PiggyBank,   href: '/dashboard'        },
   { id: 'create-budget',    label: 'Budget',     icon: Target,      href: '/budget'           },
   { id: 'expense-tracker',  label: 'Expenses',   icon: CreditCard,  href: '/expenses'         },
-  { id: 'tax-copilot',      label: 'Tax Copilot', icon: Sparkles,   href: '/tax-copilot'      },
+  ...(TAX_FEATURE_ENABLED ? [{ id: 'tax-copilot', label: 'Tax Copilot', icon: Sparkles, href: '/tax-copilot' }] : []),
   { id: 'udhar-tracker',    label: 'Lendr',      icon: HandCoins,   href: '/udhar-tracker'    },
   { id: 'recall',           label: 'Recall',     icon: Archive,     href: '/recall'           },
   { id: 'contact',          label: 'Contact',    icon: Mail,        href: '/contact'          },
@@ -28,12 +28,12 @@ const ROUTE_FAMILIES: Record<string, string[]> = {
   '/dashboard': ['/dashboard', '/track-savings', '/income-setup'],
   '/budget':    ['/budget'],
   '/expenses':  ['/expenses'],
-  '/tax-copilot': [
+  ...(TAX_FEATURE_ENABLED ? { '/tax-copilot': [
     '/tax-copilot', '/tax-optimization', '/tax-assistant',
     '/tax-planner-ai', '/tax-calendar',
     '/advance-tax', '/capital-gains',
     '/salary-restructuring', '/itr-readiness', '/tax-compliance',
-  ],
+  ] } : {}),
   '/udhar-tracker': ['/udhar-tracker'],
   '/recall':    ['/recall'],
   '/contact':   ['/contact'],

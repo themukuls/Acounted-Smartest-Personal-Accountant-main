@@ -29,7 +29,7 @@ export interface LoaderLine {
   group: LoaderGroup;
 }
 
-export const LOADER_LINES: LoaderLine[] = [
+const ALL_LOADER_LINES: LoaderLine[] = [
   // Knowing your numbers
   { group: 'awareness', text: "Most overspending isn't dramatic. It's just unnoticed." },
   { group: 'awareness', text: "You can't plan around a number you're guessing at." },
@@ -57,6 +57,12 @@ export const LOADER_LINES: LoaderLine[] = [
   { group: 'privacy', text: 'No bank logins. No data leaving. Just your numbers.' },
   { group: 'privacy', text: 'Your finances, visible to exactly one person.' },
 ];
+
+// Tax copy remains available with the dormant feature, but can never be shown
+// while the Tax experience is switched off.
+export const LOADER_LINES: LoaderLine[] = ALL_LOADER_LINES.filter(
+  (line) => line.group !== 'tax',
+);
 
 const LAST_LINE_KEY = 'vidhence_last_loader_line';
 

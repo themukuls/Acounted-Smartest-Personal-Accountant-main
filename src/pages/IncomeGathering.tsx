@@ -233,7 +233,7 @@ const IncomeGathering = () => {
                   Tell us about your income sources
                 </CardTitle>
                 <CardDescription className="text-xs md:text-sm">
-                  Add all your income sources to get accurate tax planning suggestions
+                  Add your income sources to build an accurate monthly money view
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -426,14 +426,14 @@ const IncomeGathering = () => {
                   Investment Portfolio
                 </CardTitle>
                 <CardDescription className="text-xs md:text-sm">
-                  Track your investments to optimize tax benefits and wealth building
+                  Track your investments and long-term wealth building
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {investments.length === 0 ? (
                   <div className="text-center py-6 md:py-8 text-muted-foreground">
                     <PieChart className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm">No investments added. Add your investments to get better tax planning suggestions.</p>
+                    <p className="text-sm">No investments added. Add them here to see your complete financial picture.</p>
                   </div>
                 ) : (
                   investments.map((investment) => (
@@ -577,8 +577,8 @@ const IncomeGathering = () => {
               <div>
                 <CardTitle className="text-base md:text-lg text-green-800">Boost Your Financial Intelligence!</CardTitle>
                 <CardDescription className="text-xs md:text-sm text-green-700">
-                  The more accurate your information, the better we can help you save on taxes and grow your wealth. 
-                  Complete all sections to unlock maximum savings potential! 🎯
+                  The more accurate your information, the better Acounted can organize your cash flow and help you grow your wealth.
+                  Complete all sections for a clearer financial picture. 🎯
                 </CardDescription>
               </div>
             </div>

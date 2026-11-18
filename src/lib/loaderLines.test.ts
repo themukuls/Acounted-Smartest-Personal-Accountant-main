@@ -89,10 +89,11 @@ describe('the shipped copy', () => {
     expect(LOADER_LINES.length).toBeGreaterThanOrEqual(12);
   });
 
-  test('every themed group is represented', () => {
+  test('every active themed group is represented and dormant Tax copy is excluded', () => {
     const groups = new Set(LOADER_LINES.map((l) => l.group));
-    for (const g of ['awareness', 'saving', 'accountant', 'tax', 'privacy']) {
+    for (const g of ['awareness', 'saving', 'accountant', 'privacy']) {
       expect(groups.has(g as LoaderLine['group'])).toBe(true);
     }
+    expect(groups.has('tax')).toBe(false);
   });
 });

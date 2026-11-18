@@ -33,8 +33,8 @@ export const LapsedBar = () => {
         <span className="font-semibold text-foreground">
           {localTrialEnded ? 'Your free trial ended.' : 'Your subscription ended.'}
         </span>{' '}
-        Everything you have logged is still here to read and export — adding entries, the tax
-        copilot, the assistant and search are paused until you resubscribe.
+        Everything you have logged is still here to read and export — adding entries,
+        automatic capture, the assistant and search are paused until you resubscribe.
       </p>
       <Link
         to={SUBSCRIBE_ROUTE}
