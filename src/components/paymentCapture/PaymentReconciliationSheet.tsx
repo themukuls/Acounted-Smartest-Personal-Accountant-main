@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatFullINR } from '@/lib/currency';
 import type { PendingPayment } from '@/lib/paymentCapture/native';
 import type { PaymentMerchantMapping } from '@/integrations/indexeddb/services/paymentMerchantService';
+import { useRef, useState } from 'react';
 
 export function PaymentReconciliationSheet({ open, onOpenChange, payments, mappings, onReview, onSave, onSkip }: {
   open: boolean;
@@ -12,9 +13,24 @@ export function PaymentReconciliationSheet({ open, onOpenChange, payments, mappi
   payments: PendingPayment[];
   mappings: Record<string, PaymentMerchantMapping | null>;
   onReview: (payment: PendingPayment) => void;
-  onSave: (payment: PendingPayment, mapping: PaymentMerchantMapping) => void;
+  onSave: (payment: PendingPayment, mapping: PaymentMerchantMapping) => Promise<void>;
   onSkip: (payment: PendingPayment) => void;
 }) {
+  const [savingPaymentId, setSavingPaymentId] = useState<string | null>(null);
+  const saveInFlightRef = useRef(false);
+
+  const saveOnce = async (payment: PendingPayment, mapping: PaymentMerchantMapping) => {
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
+    setSavingPaymentId(payment.id);
+    try {
+      await onSave(payment, mapping);
+    } finally {
+      saveInFlightRef.current = false;
+      setSavingPaymentId(null);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[88vh] rounded-t-3xl px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
@@ -45,7 +61,7 @@ export function PaymentReconciliationSheet({ open, onOpenChange, payments, mappi
                   <div className="mt-3 flex items-center gap-2">
                     <button type="button" onClick={() => onSkip(payment)} className="mr-auto flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /> Not expense</button>
                     <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => onReview(payment)}><Pencil className="h-3 w-3" /> {mapping ? 'Edit' : 'Review'}</Button>
-                    {mapping && <Button size="sm" className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => onSave(payment, mapping)}><Check className="h-3 w-3" /> Done</Button>}
+                    {mapping && <Button size="sm" disabled={savingPaymentId !== null} className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => void saveOnce(payment, mapping)}><Check className="h-3 w-3" /> {savingPaymentId === payment.id ? 'Saving…' : 'Done'}</Button>}
                   </div>
                 </div>
               );

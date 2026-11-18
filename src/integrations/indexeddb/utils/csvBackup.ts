@@ -257,10 +257,12 @@ export const BACKUP_SECTIONS: Section[] = [
     columns: [
       'id', 'user_id', 'created_at', 'updated_at', 'type',
       'amount', 'category', 'account', 'description', 'transaction_date',
+      'capture_payment_id', 'capture_reference', 'capture_merchant', 'capture_source',
     ],
     encode: r => [
       str(r.id), str(r.user_id), fmtTimestamp(r.created_at), fmtTimestamp(r.updated_at), str(r.type),
       num(r.amount), str(r.category), str(r.account), str(r.description), fmtTimestamp(r.transaction_date),
+      str(r.capture_payment_id), str(r.capture_reference), str(r.capture_merchant), str(r.capture_source),
     ],
   },
   {

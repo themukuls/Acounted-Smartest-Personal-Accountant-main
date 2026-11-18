@@ -44,8 +44,9 @@ final class PendingPaymentStore {
     synchronized JSONObject add(PaymentNotificationParser.ParsedPayment payment) {
         try {
             JSONArray items = readArray(ITEMS);
-            if (containsDedupe(items, payment.dedupeKey) || containsDedupe(readArray(SEEN), payment.dedupeKey)
-                    || containsLikelyDuplicate(items, payment)) {
+            JSONArray seen = readArray(SEEN);
+            if (containsDedupe(items, payment.dedupeKey) || containsDedupe(seen, payment.dedupeKey)
+                    || containsLikelyDuplicate(items, payment) || containsLikelyDuplicate(seen, payment)) {
                 return null;
             }
 
@@ -137,8 +138,10 @@ final class PendingPaymentStore {
         JSONArray seen = readArray(SEEN);
         JSONArray nextSeen = new JSONArray();
         try {
-            JSONObject marker = new JSONObject();
-            marker.put("dedupeKey", resolved.optString("dedupeKey"));
+            // Preserve the complete capture identity. A bank SMS can arrive
+            // after the app notification was already reconciled; keeping only
+            // its hash made that delayed second source look like a new payment.
+            JSONObject marker = new JSONObject(resolved.toString());
             marker.put("resolvedAt", System.currentTimeMillis());
             nextSeen.put(marker);
             for (int i = 0; i < seen.length() && nextSeen.length() < MAX_SEEN; i++) nextSeen.put(seen.get(i));
@@ -178,13 +181,18 @@ final class PendingPaymentStore {
     private boolean containsLikelyDuplicate(JSONArray array, PaymentNotificationParser.ParsedPayment payment) {
         for (int i = 0; i < array.length(); i++) {
             JSONObject item = array.optJSONObject(i);
-            if (item == null || !payment.amount.equals(item.optString("amount"))) continue;
-            if (Math.abs(payment.occurredAt - item.optLong("occurredAt")) > 120_000L) continue;
-            String existingRef = item.optString("reference", "");
-            if (payment.reference != null && payment.reference.equalsIgnoreCase(existingRef)) return true;
-            String existingMerchant = item.optString("merchant", "").trim();
-            String merchant = payment.merchant == null ? "" : payment.merchant.trim();
-            if (merchant.isEmpty() || existingMerchant.isEmpty() || merchant.equalsIgnoreCase(existingMerchant)) return true;
+            if (item == null) continue;
+            if (PaymentDuplicateDetector.isLikelyDuplicate(
+                    item.optString("amount", ""),
+                    item.optLong("occurredAt"),
+                    item.isNull("reference") ? null : item.optString("reference"),
+                    item.isNull("merchant") ? null : item.optString("merchant"),
+                    item.optString("source", ""),
+                    payment.amount,
+                    payment.occurredAt,
+                    payment.reference,
+                    payment.merchant,
+                    payment.source)) return true;
         }
         return false;
     }

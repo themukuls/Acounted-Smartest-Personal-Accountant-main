@@ -227,6 +227,10 @@ export interface TransactionCSVRow {
   amount:           number;
   created_at:       string;
   updated_at:       string;
+  capture_payment_id?: string;
+  capture_reference?: string | null;
+  capture_merchant?: string | null;
+  capture_source?: string;
 }
 
 export interface IncomeCSVRow {
@@ -673,6 +677,10 @@ export function parseCSVBackup(csvText: string): CSVBackupData {
           amount:           safeFloat(g('amount', 8)),
           created_at:       safeDate(g('created_at', 9)),
           updated_at:       safeDate(g('updated_at', 10)),
+          capture_payment_id: safeStr(g('capture_payment_id', 11)) || undefined,
+          capture_reference: safeNullStr(g('capture_reference', 12)),
+          capture_merchant: safeNullStr(g('capture_merchant', 13)),
+          capture_source: safeStr(g('capture_source', 14)) || undefined,
         };
         result.transactionRows.push(row);
         result.transactions.push(row);
@@ -1216,6 +1224,10 @@ export async function importCSVToIndexedDB(
     amount:           r.amount,
     created_at:       r.created_at || now,
     updated_at:       r.updated_at || now,
+    capture_payment_id: r.capture_payment_id,
+    capture_reference: r.capture_reference,
+    capture_merchant: r.capture_merchant,
+    capture_source: r.capture_source,
   }));
 
   // ── Income details ────────────────────────────────────────────────────────

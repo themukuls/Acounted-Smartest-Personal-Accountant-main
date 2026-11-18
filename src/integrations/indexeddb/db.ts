@@ -122,6 +122,12 @@ export interface MyDB extends DBSchema {
       account: string;
       description: string | null;
       transaction_date: string; // ISO string
+      // Present only for expenses created from Android payment capture. These
+      // fields make reconciliation idempotent across retries and app/SMS input.
+      capture_payment_id?: string;
+      capture_reference?: string | null;
+      capture_merchant?: string | null;
+      capture_source?: string;
       created_at: string;
       updated_at: string;
     };

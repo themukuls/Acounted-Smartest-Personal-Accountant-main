@@ -476,6 +476,9 @@ export const TransactionFormDialog = ({
   const [allCategories, setAllCategories] = useState<CategoryItem[]>([]);
   const [learned, setLearned]     = useState<Record<string, string>>({});
   const [confirmedBucket, setConfirmedBucket] = useState<string | null>(null);
+  // React state disables the button on the next render. The ref closes the
+  // smaller same-frame window in which a rapid double tap can invoke twice.
+  const saveInFlightRef = useRef(false);
 
   // ── Fetch & merge categories ──────────────────────────────────────────
   const fetchCategories = useCallback(async () => {
@@ -578,6 +581,8 @@ export const TransactionFormDialog = ({
       toast({ title: "Fill all fields", description: "Amount, category and payment method are required.", variant: "destructive" });
       return;
     }
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
     setIsSaving(true);
     try {
       await onSave({ ...formData, type: currentFormType, transactionId: initialData?.id, transaction_date: selectedDateTime.toISOString() });
@@ -589,6 +594,7 @@ export const TransactionFormDialog = ({
     } catch {
       toast({ title: "Save failed", variant: "destructive" });
     } finally {
+      saveInFlightRef.current = false;
       setIsSaving(false);
     }
   };

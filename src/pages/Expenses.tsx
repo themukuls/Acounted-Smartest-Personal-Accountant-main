@@ -18,6 +18,7 @@ import { usePendingPayments } from "@/hooks/usePendingPayments";
 import { completePendingPayment, skipPendingPayment, type PendingPayment } from "@/lib/paymentCapture/native";
 import { nextPendingPayment, reconciliationProgress } from "@/lib/paymentCapture/reconciliation";
 import { findPaymentMerchantMapping, rememberPaymentMerchantMapping, type PaymentMerchantMapping } from "@/integrations/indexeddb/services/paymentMerchantService";
+import { saveCapturedPaymentTransaction } from "@/integrations/indexeddb/services/capturedPaymentService";
 import { cn } from "@/lib/utils";
 import { format, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameWeek } from "date-fns";
 import DOMPurify from 'dompurify';
@@ -234,18 +235,26 @@ const Expenses = () => {
 
       const dateToUse = new Date(data.transaction_date);
 
-      await saveTransaction(user.id, {
-        id: data.transactionId,
-        type: data.type,
-        amount: parseFloat(data.amount),
-        category: data.type === 'income' ? 'income' : data.category,
-        account: data.account,
-        description: DOMPurify.sanitize(data.note || ''),
-        transaction_date: dateToUse.toISOString()
-      });
+      const resolvedPayment = reviewingPayment && !data.transactionId ? reviewingPayment : null;
+      if (resolvedPayment) {
+        await saveCapturedPaymentTransaction(user.id, resolvedPayment, {
+          category: data.category,
+          account: data.account,
+          description: DOMPurify.sanitize(data.note || ''),
+        });
+      } else {
+        await saveTransaction(user.id, {
+          id: data.transactionId,
+          type: data.type,
+          amount: parseFloat(data.amount),
+          category: data.type === 'income' ? 'income' : data.category,
+          account: data.account,
+          description: DOMPurify.sanitize(data.note || ''),
+          transaction_date: dateToUse.toISOString()
+        });
+      }
       let continuedReview = false;
-      if (reviewingPayment && !data.transactionId) {
-        const resolvedPayment = reviewingPayment;
+      if (resolvedPayment) {
         await rememberPaymentMerchantMapping(user.id, resolvedPayment, {
           category: data.category,
           account: data.account,
@@ -284,13 +293,10 @@ const Expenses = () => {
   const saveReconciledPayment = async (payment: PendingPayment, mapping: PaymentMerchantMapping) => {
     if (!guard('canWrite') || !user) return;
     try {
-      await saveTransaction(user.id, {
-        type: 'expense',
-        amount: Number(payment.amount),
+      await saveCapturedPaymentTransaction(user.id, payment, {
         category: mapping.category,
         account: mapping.account,
         description: DOMPurify.sanitize(mapping.note || ''),
-        transaction_date: new Date(payment.occurredAt).toISOString(),
       });
       await rememberPaymentMerchantMapping(user.id, payment, mapping);
       await completePendingPayment(payment.id);
@@ -914,7 +920,7 @@ const Expenses = () => {
         payments={pendingPayments}
         mappings={paymentMappings}
         onReview={reviewPayment}
-        onSave={(payment, mapping) => void saveReconciledPayment(payment, mapping)}
+        onSave={saveReconciledPayment}
         onSkip={payment => void skipPayment(payment)}
       />
 
