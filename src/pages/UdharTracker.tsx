@@ -20,17 +20,18 @@ import {
   CheckCircle2, MessageSquare, MoreVertical, Edit3, Trash2,
   AlertTriangle, TrendingUp, TrendingDown, IndianRupee,
   Users, SlidersHorizontal, ChevronDown, ChevronUp,
+  Search, Clock3,
 } from "lucide-react";
 import { formatFullINR } from "@/lib/currency";
 import { format, isBefore, isToday, differenceInDays, isSameMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { AddUdharDialog } from "@/components/udhar/AddUdharDialog";
+import { AddUdharDialog, type UdharFormData } from "@/components/udhar/AddUdharDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getUdharEntries, saveUdharEntry, deleteUdharEntry,
-  logPayment, deletePayment,
+  logPayment, deletePayment, markSettled,
   getOutstanding, getProgressPercent,
 } from "@/integrations/indexeddb/services/udharService";
 import { MyDB } from "@/integrations/indexeddb/db";
@@ -152,10 +153,11 @@ function UdharEntryCard({ entry, onSettle, onWhatsApp, onEdit, onDelete, onPayme
   onPaymentLogged: () => void;
 }) {
   const name        = entry.type === 'given' ? entry.person_name : entry.lender_name;
+  const displayName = name || 'Details pending';
   const isSettled   = entry.is_settled;
   const isGiven     = entry.type === 'given';
   const due         = getDueDateStatus(entry.due_date, isSettled);
-  const initials    = (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const initials    = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   const payments    = (entry as any).payments   ?? [];
   const amountPaid  = (entry as any).amount_paid ?? 0;
   const outstanding = getOutstanding(entry);
@@ -187,9 +189,10 @@ function UdharEntryCard({ entry, onSettle, onWhatsApp, onEdit, onDelete, onPayme
     // Offer WhatsApp confirmation
     if (entry.phone_number) {
       const newOut = outstanding - amt;
+      const verb = isGiven ? 'received' : 'repaid';
       const msg = newOut <= 0
-        ? `Hi ${name}, received ${formatFullINR(amt)}. We're all settled! 🎉 — Sent via Lendr`
-        : `Hi ${name}, received ${formatFullINR(amt)}. Still outstanding: ${formatFullINR(newOut)} 🙏 — Sent via Lendr`;
+        ? `Hi ${name}, ${verb} ${formatFullINR(amt)}. We're all settled! 🎉 — Sent via Lendr`
+        : `Hi ${name}, ${verb} ${formatFullINR(amt)}. Still outstanding: ${formatFullINR(newOut)} 🙏 — Sent via Lendr`;
       if (window.confirm(`Send WhatsApp confirmation to ${name}?`)) {
         window.open(`https://wa.me/${entry.phone_number}?text=${encodeURIComponent(msg)}`, '_blank');
       }
@@ -218,8 +221,16 @@ function UdharEntryCard({ entry, onSettle, onWhatsApp, onEdit, onDelete, onPayme
 
           <div className="flex-1 min-w-0">
             <p className={cn("font-semibold text-sm leading-tight", isSettled && "line-through text-muted-foreground")}>
-              {name}
+              {displayName}
             </p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {entry.needs_details && (
+                <Badge className="border-amber-200 bg-amber-50 px-1.5 py-0 text-[9px] text-amber-700">Complete details</Badge>
+              )}
+              {entry.source === 'expense' && (
+                <Badge variant="outline" className="px-1.5 py-0 text-[9px] text-muted-foreground">From Expenses</Badge>
+              )}
+            </div>
             <div className="flex items-baseline gap-1.5 mt-0.5">
               <p className="text-base font-bold text-foreground">{formatFullINR(entry.amount)}</p>
               {!isSettled && outstanding < entry.amount && (
@@ -249,7 +260,7 @@ function UdharEntryCard({ entry, onSettle, onWhatsApp, onEdit, onDelete, onPayme
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </button>
               <button
-                onClick={() => onWhatsApp(name || '', outstanding > 0 ? outstanding : entry.amount, entry.type, entry.phone_number || '')}
+                onClick={() => entry.phone_number && onWhatsApp(name || '', outstanding > 0 ? outstanding : entry.amount, entry.type, entry.phone_number)}
                 title={entry.phone_number ? "Send WhatsApp reminder" : "Add phone to enable"}
                 className={cn("h-7 w-7 rounded-full flex items-center justify-center transition-colors",
                   entry.phone_number ? "bg-green-100 text-green-600 hover:bg-green-200" : "bg-muted text-muted-foreground opacity-40 cursor-not-allowed"
@@ -599,6 +610,8 @@ const UdharTracker: React.FC = () => {
   const [currentUdharType,   setCurrentUdharType]   = useState<'given' | 'taken'>('given');
   const [editingUdharEntry,  setEditingUdharEntry]  = useState<UdharEntry | null>(null);
   const [showMsgSheet,       setShowMsgSheet]       = useState(false);
+  const [searchQuery,        setSearchQuery]        = useState('');
+  const [statusFilter,       setStatusFilter]       = useState<'open' | 'overdue' | 'settled' | 'all'>('open');
 
   const [givenTemplate, setGivenTemplate] = useState(() => safeGetItem(STORAGE_KEY_GIVEN) || DEFAULT_MSG_GIVEN);
   const [takenTemplate, setTakenTemplate] = useState(() => safeGetItem(STORAGE_KEY_TAKEN) || DEFAULT_MSG_TAKEN);
@@ -631,22 +644,38 @@ const UdharTracker: React.FC = () => {
   });
 
   const filterEntries = (entries: UdharEntry[]) => {
-    if (!selectedMonth) return entries;
-    const filterDate = new Date(selectedMonth.year, selectedMonth.month, 1);
-    return entries.filter(e => !e.is_settled || isSameMonth(new Date(e.due_date), filterDate));
+    const query = searchQuery.trim().toLowerCase();
+    const filterDate = selectedMonth ? new Date(selectedMonth.year, selectedMonth.month, 1) : null;
+    return entries.filter(e => {
+      const name = (e.type === 'given' ? e.person_name : e.lender_name) || '';
+      const matchesQuery = !query || `${name} ${e.description || ''}`.toLowerCase().includes(query);
+      const overdue = !e.is_settled && isBefore(new Date(e.due_date), new Date()) && !isToday(new Date(e.due_date));
+      const matchesStatus = statusFilter === 'all'
+        || (statusFilter === 'open' && !e.is_settled)
+        || (statusFilter === 'overdue' && overdue)
+        || (statusFilter === 'settled' && e.is_settled);
+      const matchesMonth = !filterDate || !e.is_settled || isSameMonth(new Date(e.due_date), filterDate);
+      return matchesQuery && matchesStatus && matchesMonth;
+    });
   };
 
   const givenEntries = filterEntries(allGivenEntries);
   const takenEntries = filterEntries(allTakenEntries);
   const isLoading    = isLoadingGiven || isLoadingTaken;
 
-  const totalGiven = givenEntries.filter(e => !e.is_settled).reduce((s, e) => s + e.amount, 0);
-  const totalTaken = takenEntries.filter(e => !e.is_settled).reduce((s, e) => s + e.amount, 0);
+  const totalGiven = allGivenEntries.filter(e => !e.is_settled).reduce((s, e) => s + getOutstanding(e), 0);
+  const totalTaken = allTakenEntries.filter(e => !e.is_settled).reduce((s, e) => s + getOutstanding(e), 0);
   const netBalance = totalGiven - totalTaken;
+  const allOpen = [...allGivenEntries, ...allTakenEntries].filter(e => !e.is_settled);
+  const overdueCount = allOpen.filter(e => isBefore(new Date(e.due_date), new Date()) && !isToday(new Date(e.due_date))).length;
+  const dueSoonCount = allOpen.filter(e => {
+    const days = differenceInDays(new Date(e.due_date), new Date());
+    return days >= 0 && days <= 7;
+  }).length;
 
   const handleSettleUdhar = async (entry: UdharEntry) => {
     if (!user) return;
-    await saveUdharEntry(user.id, { ...entry, is_settled: !entry.is_settled, updated_at: new Date().toISOString() });
+    await markSettled(entry.id, !entry.is_settled);
     invalidate(entry.type);
     toast({ title: entry.is_settled ? "Marked unsettled" : "Marked settled!" });
   };
@@ -665,11 +694,7 @@ const UdharTracker: React.FC = () => {
     toast({ title: "Deleted", description: `Entry for ${name} removed.` });
   };
 
-  const handleSaveUdhar = async (data: {
-    id?: string; personName?: string; lenderName?: string;
-    amount: number; dueDate: Date; phoneNumber: string;
-    description: string; type: 'given' | 'taken';
-  }) => {
+  const handleSaveUdhar = async (data: UdharFormData) => {
     if (!user) return;
     await saveUdharEntry(user.id, {
       id: data.id, type: data.type,
@@ -677,6 +702,9 @@ const UdharTracker: React.FC = () => {
       amount: data.amount, due_date: data.dueDate.toISOString(),
       is_settled: data.id ? editingUdharEntry?.is_settled : false,
       phone_number: data.phoneNumber, description: data.description || null,
+      source_transaction_id: data.sourceTransactionId ?? editingUdharEntry?.source_transaction_id ?? null,
+      source: (data.sourceTransactionId ?? editingUdharEntry?.source_transaction_id) ? 'expense' : 'manual',
+      needs_details: false,
     });
     invalidate(data.type);
     toast({ title: "Saved!", description: `Entry ${data.id ? "updated" : "added"}.` });
@@ -727,9 +755,9 @@ const UdharTracker: React.FC = () => {
         <GlassCard className="p-4" hover={false}>
           <div className="flex gap-3 mb-3">
             <SummaryPill label="You'll Receive" amount={totalGiven}
-              count={givenEntries.filter(e => !e.is_settled).length} icon={TrendingUp} accent="bg-blue-50/80 border-blue-200/60" />
+              count={allGivenEntries.filter(e => !e.is_settled).length} icon={TrendingUp} accent="bg-blue-50/80 border-blue-200/60" />
             <SummaryPill label="You Owe" amount={totalTaken}
-              count={takenEntries.filter(e => !e.is_settled).length} icon={TrendingDown} accent="bg-rose-50/80 border-rose-200/60" />
+              count={allTakenEntries.filter(e => !e.is_settled).length} icon={TrendingDown} accent="bg-rose-50/80 border-rose-200/60" />
           </div>
           <div className={cn("rounded-xl p-3 flex items-center justify-between",
             netBalance >= 0 ? "bg-emerald-50 border border-emerald-200/60" : "bg-orange-50 border border-orange-200/60")}>
@@ -744,6 +772,29 @@ const UdharTracker: React.FC = () => {
                 {netBalance >= 0 ? "in your favor" : "you owe more"}
               </Badge>
             </div>
+          </div>
+          {(overdueCount > 0 || dueSoonCount > 0) && (
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+              {overdueCount > 0 && <span className="rounded-full bg-red-50 px-2.5 py-1 font-semibold text-red-700">{overdueCount} overdue</span>}
+              {dueSoonCount > 0 && <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700"><Clock3 className="h-3 w-3" /> {dueSoonCount} due in 7 days</span>}
+            </div>
+          )}
+        </GlassCard>
+
+        {/* Find and focus the ledger without scrolling through both sections. */}
+        <GlassCard className="p-3 space-y-2.5" hover={false}>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={searchQuery} onChange={event => setSearchQuery(event.target.value)}
+              placeholder="Search person or note" className="h-10 pl-9 text-sm" />
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            {(['open', 'overdue', 'settled', 'all'] as const).map(filter => (
+              <button key={filter} type="button" onClick={() => setStatusFilter(filter)}
+                className={cn("shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold capitalize transition-colors",
+                  statusFilter === filter ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
+              >{filter}</button>
+            ))}
           </div>
         </GlassCard>
 
@@ -765,12 +816,6 @@ const UdharTracker: React.FC = () => {
         isOpen={showAddUdharDialog}
         onClose={() => { setShowAddUdharDialog(false); setEditingUdharEntry(null); }}
         onSave={handleSaveUdhar}
-        onSaveMultiple={async (entries) => {
-          if (!user) return;
-          for (const entry of entries) await handleSaveUdhar(entry);
-          setShowAddUdharDialog(false);
-          toast({ title: `${entries.length} entries created!` });
-        }}
         type={currentUdharType}
         initialData={editingUdharEntry ? {
           id: editingUdharEntry.id,
@@ -781,6 +826,8 @@ const UdharTracker: React.FC = () => {
           phoneNumber: editingUdharEntry.phone_number,
           description: editingUdharEntry.description || undefined,
           type: editingUdharEntry.type,
+          sourceTransactionId: editingUdharEntry.source_transaction_id,
+          needsDetails: editingUdharEntry.needs_details,
         } : undefined}
       />
 

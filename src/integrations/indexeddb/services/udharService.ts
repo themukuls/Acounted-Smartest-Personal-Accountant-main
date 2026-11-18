@@ -6,6 +6,13 @@ import { convertToIST } from '@/lib/date-utils';
 export type UdharEntry   = MyDB['udhar_entries']['value'];
 export type UdharPayment = UdharEntry['payments'][0];
 
+export interface UdharSourceTransaction {
+  id: string;
+  amount: number;
+  description: string | null;
+  transaction_date: string;
+}
+
 // ── Safe defaults for entries that pre-date payment tracking ──────────────────
 // Old entries won't have payments/amount_paid — add safe defaults so nothing breaks
 function withDefaults(entry: UdharEntry): UdharEntry {
@@ -13,7 +20,53 @@ function withDefaults(entry: UdharEntry): UdharEntry {
     ...entry,
     payments:    (entry as any).payments    ?? [],
     amount_paid: (entry as any).amount_paid ?? 0,
+    source: (entry as any).source ?? 'manual',
+    needs_details: (entry as any).needs_details ?? false,
   };
+}
+
+export function udharEntryIdForTransaction(transactionId: string): string {
+  return `udhar-transaction::${transactionId}`;
+}
+
+/**
+ * Creates (or returns) the single Lendr draft belonging to an expense.
+ * The deterministic id makes retries, captured-payment reconciliation and
+ * double taps safe: one ledger transaction always maps to one Lendr record.
+ */
+export async function ensureUdharDraftForTransaction(
+  userId: string,
+  transaction: UdharSourceTransaction,
+): Promise<UdharEntry> {
+  const id = udharEntryIdForTransaction(transaction.id);
+  const existing = await get<UdharEntry>('udhar_entries', id);
+  if (existing) return withDefaults(existing);
+
+  const borrowedOn = new Date(transaction.transaction_date);
+  const dueDate = new Date(borrowedOn);
+  dueDate.setDate(dueDate.getDate() + 7);
+  const now = new Date().toISOString();
+  const draft: UdharEntry = {
+    id,
+    user_id: userId,
+    type: 'given',
+    person_name: null,
+    lender_name: null,
+    amount: transaction.amount,
+    due_date: dueDate.toISOString(),
+    is_settled: false,
+    phone_number: '',
+    description: transaction.description || null,
+    source_transaction_id: transaction.id,
+    source: 'expense',
+    needs_details: true,
+    payments: [],
+    amount_paid: 0,
+    created_at: now,
+    updated_at: now,
+  };
+  await put('udhar_entries', draft);
+  return draft;
 }
 
 /**
@@ -145,6 +198,7 @@ export async function logPayment(
 
   const safe        = withDefaults(entry);
   const outstanding = safe.amount - safe.amount_paid;
+  if (!Number.isFinite(payment.amount) || payment.amount <= 0 || outstanding <= 0) return safe;
   const cappedAmt   = Math.min(payment.amount, outstanding);
 
   const newPayment: UdharPayment = {
@@ -206,10 +260,11 @@ export async function markSettled(
   if (!entry) { return; }
 
   const safe = withDefaults(entry);
+  const paidFromLedger = safe.payments.reduce((sum, payment) => sum + payment.amount, 0);
   await put('udhar_entries', {
     ...safe,
     is_settled:  settled,
-    amount_paid: settled ? safe.amount : safe.amount_paid,
+    amount_paid: settled ? safe.amount : paidFromLedger,
     updated_at:  new Date().toISOString(),
   });
 }

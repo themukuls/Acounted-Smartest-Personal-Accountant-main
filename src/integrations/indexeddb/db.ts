@@ -239,6 +239,11 @@ export interface MyDB extends DBSchema {
       is_settled: boolean;
       phone_number: string;
       description: string | null;
+      // Set when an expense created this Lendr record. The link is used as an
+      // idempotency key so one transaction can never create two loans.
+      source_transaction_id?: string | null;
+      source?: 'manual' | 'expense';
+      needs_details?: boolean;
       // ── Partial payment tracking ──────────────────────────────
       payments: Array<{
         id: string;

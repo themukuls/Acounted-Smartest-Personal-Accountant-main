@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-interface UdharFormData {
+export interface UdharFormData {
   id?: string;
   personName?: string;
   lenderName?: string;
@@ -24,6 +24,8 @@ interface UdharFormData {
   phoneNumber: string;
   description?: string;
   type: 'given' | 'taken';
+  sourceTransactionId?: string | null;
+  needsDetails?: boolean;
 }
 
 interface AddUdharDialogProps {
@@ -32,6 +34,7 @@ interface AddUdharDialogProps {
   onSave: (data: UdharFormData) => Promise<void>;
   type: 'given' | 'taken';
   initialData?: UdharFormData;
+  fromExpense?: boolean;
 }
 
 // ─── Quick amount chips ───────────────────────────────────────────────────────
@@ -208,7 +211,7 @@ const SplitCalculator = ({
 };
 
 // ─── Main Dialog ──────────────────────────────────────────────────────────────
-export const AddUdharDialog = ({ isOpen, onClose, onSave, type, initialData }: AddUdharDialogProps) => {
+export const AddUdharDialog = ({ isOpen, onClose, onSave, type, initialData, fromExpense = false }: AddUdharDialogProps) => {
   const { toast }     = useToast();
   const isGiven       = type === 'given';
   const accent        = isGiven ? 'blue' : 'rose';
@@ -272,6 +275,8 @@ export const AddUdharDialog = ({ isOpen, onClose, onSave, type, initialData }: A
         phoneNumber: phoneNumber.replace(/\D/g, ''),
         description,
         type,
+        sourceTransactionId: initialData?.sourceTransactionId ?? null,
+        needsDetails: false,
       };
       if (isGiven) dataToSave.personName = personName;
       else         dataToSave.lenderName = personName;
@@ -318,6 +323,15 @@ export const AddUdharDialog = ({ isOpen, onClose, onSave, type, initialData }: A
 
         {/* Form body */}
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4 bg-white">
+
+          {fromExpense && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5">
+              <p className="text-xs font-bold text-blue-800">Expense saved to Lendr</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-blue-700">
+                Add the person and due date now. If you close this, the draft remains in Lendr so no money is lost.
+              </p>
+            </div>
+          )}
 
           {/* Name */}
           <div className="space-y-1.5">
@@ -390,15 +404,6 @@ export const AddUdharDialog = ({ isOpen, onClose, onSave, type, initialData }: A
             <SplitCalculator
               mainPersonName={personName}
               onUseAmount={val => { setAmount(val); setShowCalc(false); }}
-              onSaveMultiple={onSaveMultiple}
-              onCreateAll={async (people, shares) => {
-                if (!onSaveMultiple) return;
-                const entries: UdharFormData[] = people
-                  .map((p, i) => ({ ...({} as UdharFormData), personName: p.name.trim() || `Person ${i + 1}`, amount: parseFloat(shares[i].toFixed(0)), dueDate: dueDate!, phoneNumber: p.phone?.replace(/\D/g,"") || "", description, type }))
-                  .filter(e => e.amount > 0 && e.personName);
-                await onSaveMultiple(entries);
-                setShowCalc(false);
-              }}
               accent={accent}
             />
           )}

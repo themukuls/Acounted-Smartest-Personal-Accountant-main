@@ -34,6 +34,7 @@ export const DEFAULT_CATEGORIES: CategoryDef[] = [
   { category_name: "professional-fee", emoji: "💼", label: "Professional"      },
   { category_name: "trips-outings",    emoji: "✈️", label: "Trips"            },
   { category_name: "emis",             emoji: "💳", label: "EMIs"              },
+  { category_name: "udhar",            emoji: "🤝", label: "Udhar / Lendr"     },
   { category_name: "others",           emoji: "📦", label: "Others"            },
 ];
 

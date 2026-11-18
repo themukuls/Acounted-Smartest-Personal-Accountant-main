@@ -26,6 +26,12 @@ import { getMonthlyBudgets } from "@/integrations/indexeddb/services/monthlyBudg
 import { getMonthlyTransactions, saveTransaction, deleteTransaction } from "@/integrations/indexeddb/services/dataService";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGate } from "@/components/paywall/useGate";
+import { AddUdharDialog, type UdharFormData } from "@/components/udhar/AddUdharDialog";
+import {
+  ensureUdharDraftForTransaction,
+  saveUdharEntry,
+  type UdharEntry,
+} from "@/integrations/indexeddb/services/udharService";
 
 interface Transaction {
   id: string;
@@ -70,6 +76,9 @@ const Expenses = () => {
   const [reviewingPayment, setReviewingPayment] = useState<PendingPayment | null>(null);
   const [reviewSessionTotal, setReviewSessionTotal] = useState(0);
   const [paymentMappings, setPaymentMappings] = useState<Record<string, PaymentMerchantMapping | null>>({});
+  const [udharDraft, setUdharDraft] = useState<UdharEntry | null>(null);
+  const [showUdharPrompt, setShowUdharPrompt] = useState(false);
+  const [resumeAfterUdharPaymentId, setResumeAfterUdharPaymentId] = useState<string | null>(null);
   const { payments: pendingPayments, refresh: refreshPendingPayments } = usePendingPayments();
 
   useEffect(() => {
@@ -112,6 +121,44 @@ const Expenses = () => {
     setReviewSessionTotal(total => Math.max(total, remaining.length + 1));
     await openPaymentReview(next);
     return true;
+  };
+
+  const openUdharDetails = async (transaction: Transaction, resumePaymentId: string | null = null) => {
+    if (!user) return;
+    const draft = await ensureUdharDraftForTransaction(user.id, transaction);
+    setUdharDraft(draft);
+    setResumeAfterUdharPaymentId(resumePaymentId);
+    setShowUdharPrompt(true);
+    queryClient.invalidateQueries({ queryKey: ['udharEntries', user.id] });
+  };
+
+  const finishUdharPrompt = async () => {
+    setShowUdharPrompt(false);
+    setUdharDraft(null);
+    const paymentId = resumeAfterUdharPaymentId;
+    setResumeAfterUdharPaymentId(null);
+    if (paymentId) await advancePaymentReview(paymentId);
+  };
+
+  const saveUdharDetails = async (data: UdharFormData) => {
+    if (!user || !udharDraft) return;
+    await saveUdharEntry(user.id, {
+      id: udharDraft.id,
+      type: data.type,
+      person_name: data.personName || null,
+      lender_name: data.lenderName || null,
+      amount: data.amount,
+      due_date: data.dueDate.toISOString(),
+      phone_number: data.phoneNumber,
+      description: DOMPurify.sanitize(data.description || ''),
+      source_transaction_id: udharDraft.source_transaction_id,
+      source: 'expense',
+      needs_details: false,
+    });
+    queryClient.invalidateQueries({ queryKey: ['udharEntries', user.id, 'given'] });
+    queryClient.invalidateQueries({ queryKey: ['globalSearchCorpus'] });
+    toast({ title: 'Lendr details saved', description: 'The expense and Lendr record are linked.' });
+    await finishUdharPrompt();
   };
 
   // ✅ FIX: removed `selectedMonth` from deps array.
@@ -236,14 +283,16 @@ const Expenses = () => {
       const dateToUse = new Date(data.transaction_date);
 
       const resolvedPayment = reviewingPayment && !data.transactionId ? reviewingPayment : null;
+      let savedTransaction: Transaction;
       if (resolvedPayment) {
-        await saveCapturedPaymentTransaction(user.id, resolvedPayment, {
+        const result = await saveCapturedPaymentTransaction(user.id, resolvedPayment, {
           category: data.category,
           account: data.account,
           description: DOMPurify.sanitize(data.note || ''),
         });
+        savedTransaction = result.transaction as Transaction;
       } else {
-        await saveTransaction(user.id, {
+        savedTransaction = await saveTransaction(user.id, {
           id: data.transactionId,
           type: data.type,
           amount: parseFloat(data.amount),
@@ -251,8 +300,9 @@ const Expenses = () => {
           account: data.account,
           description: DOMPurify.sanitize(data.note || ''),
           transaction_date: dateToUse.toISOString()
-        });
+        }) as Transaction;
       }
+      const needsUdharDetails = data.type === 'expense' && data.category.toLowerCase() === 'udhar' && !data.transactionId;
       let continuedReview = false;
       if (resolvedPayment) {
         await rememberPaymentMerchantMapping(user.id, resolvedPayment, {
@@ -261,7 +311,7 @@ const Expenses = () => {
           note: DOMPurify.sanitize(data.note || ''),
         });
         await completePendingPayment(resolvedPayment.id);
-        continuedReview = await advancePaymentReview(resolvedPayment.id);
+        if (!needsUdharDetails) continuedReview = await advancePaymentReview(resolvedPayment.id);
       }
       toast({
         title: "Success",
@@ -269,6 +319,10 @@ const Expenses = () => {
       });
       setEditingTransaction(null);
       if (!continuedReview) setShowTransactionFormDialog(false);
+      if (needsUdharDetails) {
+        setReviewingPayment(null);
+        await openUdharDetails(savedTransaction, resolvedPayment?.id ?? null);
+      }
       setSelectedWeekForDialog('');
       await fetchTransactionsAndBudgetDates(activeWeekFilter, selectedMonth);
       
@@ -293,14 +347,20 @@ const Expenses = () => {
   const saveReconciledPayment = async (payment: PendingPayment, mapping: PaymentMerchantMapping) => {
     if (!guard('canWrite') || !user) return;
     try {
-      await saveCapturedPaymentTransaction(user.id, payment, {
+      const result = await saveCapturedPaymentTransaction(user.id, payment, {
         category: mapping.category,
         account: mapping.account,
         description: DOMPurify.sanitize(mapping.note || ''),
       });
       await rememberPaymentMerchantMapping(user.id, payment, mapping);
       await completePendingPayment(payment.id);
-      await advancePaymentReview(payment.id);
+      const needsUdharDetails = mapping.category.toLowerCase() === 'udhar';
+      if (needsUdharDetails) {
+        setShowReconciliation(false);
+        await openUdharDetails(result.transaction as Transaction, payment.id);
+      } else {
+        await advancePaymentReview(payment.id);
+      }
       await fetchTransactionsAndBudgetDates(activeWeekFilter, selectedMonth);
       queryClient.invalidateQueries({ queryKey: ['quickActionsWeeklySummary'] });
       queryClient.invalidateQueries({ queryKey: ['weeklyBudgetProjections'] });
@@ -912,6 +972,28 @@ const Expenses = () => {
         } : undefined}
         onDetectedLater={() => { setShowTransactionFormDialog(false); setReviewingPayment(null); setReviewSessionTotal(0); }}
         onDetectedSkip={() => reviewingPayment && void skipPayment(reviewingPayment)}
+      />
+
+      <AddUdharDialog
+        isOpen={showUdharPrompt}
+        fromExpense
+        type="given"
+        onClose={() => {
+          toast({ title: 'Lendr draft kept', description: 'Complete the pending details from Lendr whenever you are ready.' });
+          void finishUdharPrompt();
+        }}
+        onSave={saveUdharDetails}
+        initialData={udharDraft ? {
+          id: udharDraft.id,
+          personName: udharDraft.person_name || undefined,
+          amount: udharDraft.amount,
+          dueDate: new Date(udharDraft.due_date),
+          phoneNumber: udharDraft.phone_number,
+          description: udharDraft.description || undefined,
+          type: 'given',
+          sourceTransactionId: udharDraft.source_transaction_id,
+          needsDetails: true,
+        } : undefined}
       />
 
       <PaymentReconciliationSheet

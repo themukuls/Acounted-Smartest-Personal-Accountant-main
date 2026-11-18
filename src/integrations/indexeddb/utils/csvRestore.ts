@@ -336,6 +336,9 @@ export interface UdharCSVRow {
   description:  string | null;
   payments:     Array<{ id: string; amount: number; date: string; note: string }>;
   amount_paid:  number;
+  source_transaction_id: string | null;
+  source: 'manual' | 'expense';
+  needs_details: boolean;
 }
 
 export interface RecallCSVRow {
@@ -820,6 +823,9 @@ export function parseCSVBackup(csvText: string): CSVBackupData {
           description:  safeNullStr(g('description', 12)),
           payments:     safeJSON(safeStr(g('payments', 13)), []),
           amount_paid:  safeFloat(g('amount_paid', 14)),
+          source_transaction_id: safeNullStr(g('source_transaction_id', 15)),
+          source:       g('source', 16) === 'expense' ? 'expense' : 'manual',
+          needs_details: safeBool(g('needs_details', 17)),
         });
         break;
       }
@@ -1341,6 +1347,9 @@ export async function importCSVToIndexedDB(
     description:  r.description,
     payments:     r.payments || [],
     amount_paid:  r.amount_paid,
+    source_transaction_id: r.source_transaction_id,
+    source:       r.source,
+    needs_details: r.needs_details,
     created_at:   r.created_at || now,
     updated_at:   r.updated_at || now,
   }));
